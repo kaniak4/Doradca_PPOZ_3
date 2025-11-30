@@ -1,0 +1,388 @@
+/**
+ * Print styles for Doradca PPOŻ AI
+ * Optymalizuje wygląd raportu podczas drukowania
+ */
+
+@media print {
+  /* Reset i podstawowe ustawienia */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Ukryj elementy UI, które nie powinny być drukowane */
+  header,
+  footer,
+  nav,
+  .no-print,
+  /* Ukryj przyciski */
+  button,
+  /* Ukryj tooltips */
+  [role="tooltip"],
+  /* Ukryj skeleton loaders */
+  .skeleton {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Ukryj sekcję wyszukiwania */
+  main > div:first-child:not([class*="max-w-6xl"]) {
+    display: none !important;
+  }
+
+  /* Ukryj scrollbar */
+  ::-webkit-scrollbar {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Stylowanie strony */
+  @page {
+    size: A4;
+    margin: 2cm 1.5cm;
+  }
+
+  /* Podstawowe style dla body */
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+    line-height: 1.6;
+  }
+
+  /* Ukryj dark mode - zawsze drukuj w jasnych kolorach */
+  .dark,
+  [class*="dark:"] {
+    background: white !important;
+    color: black !important;
+    border-color: #e5e7eb !important;
+  }
+
+  /* Dashboard - główny kontener - POKAŻ */
+  .w-full.max-w-6xl,
+  div[class*="max-w-6xl"] {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+
+  /* Sekcja podglądu raportu - główna sekcja do druku - POKAŻ */
+  .bg-white.rounded-xl.shadow-lg,
+  div[class*="bg-white"][class*="rounded-xl"][class*="shadow-lg"],
+  div[class*="max-w-4xl"][class*="mx-auto"] {
+    box-shadow: none !important;
+    border: 1pt solid #000 !important;
+    page-break-inside: avoid;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: auto !important;
+  }
+
+  /* Nagłówek raportu z przyciskami - UKRYJ */
+  .bg-gray-100.p-4.border-b,
+  .bg-gray-100.dark\\:bg-slate-900\\/50,
+  div[class*="bg-gray-100"][class*="p-4"][class*="border-b"],
+  .no-print {
+    display: none !important;
+  }
+
+  /* Zawartość raportu - POKAŻ - NAJWAŻNIEJSZE */
+  .p-12.font-serif,
+  div[class*="p-12"][class*="font-serif"] {
+    padding: 1cm !important;
+    overflow: visible !important;
+    display: block !important;
+    visibility: visible !important;
+    flex: 1 !important;
+  }
+
+  .p-12.font-serif > *,
+  div[class*="p-12"][class*="font-serif"] > * {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  /* Content Area - POKAŻ */
+  .min-h-\\[400px\\],
+  .min-h-\\[400px\\] > *,
+  .tab-content-enter,
+  .tab-content-enter > *,
+  div[class*="min-h"] {
+    overflow: visible !important;
+    min-height: auto !important;
+    display: block !important;
+  }
+
+  /* Pokaż wszystkie sekcje Dashboard */
+  div[class*="space-y-6"],
+  div[class*="grid"],
+  div[class*="bg-white"],
+  div[class*="rounded-xl"] {
+    display: block !important;
+  }
+
+  /* Tytuł raportu */
+  h1 {
+    font-size: 24pt;
+    font-weight: bold;
+    margin-bottom: 0.5cm;
+    page-break-after: avoid;
+    display: block !important;
+  }
+
+  /* Podtytuły */
+  h2 {
+    font-size: 16pt;
+    font-weight: bold;
+    margin-top: 1cm;
+    margin-bottom: 0.5cm;
+    page-break-after: avoid;
+    border-bottom: 2pt solid #000;
+    padding-bottom: 0.2cm;
+    display: block !important;
+  }
+
+  h3 {
+    font-size: 14pt;
+    font-weight: bold;
+    margin-top: 0.8cm;
+    margin-bottom: 0.3cm;
+    page-break-after: avoid;
+    display: block !important;
+  }
+
+  /* Paragrafy */
+  p {
+    margin-bottom: 0.5cm;
+    text-align: justify;
+    orphans: 3;
+    widows: 3;
+    display: block !important;
+  }
+
+  /* Listy */
+  ul, ol {
+    margin-bottom: 0.5cm;
+    padding-left: 1.5cm;
+    display: block !important;
+  }
+
+  li {
+    margin-bottom: 0.3cm;
+    page-break-inside: avoid;
+    display: list-item !important;
+  }
+
+  /* Tabele i karty ryzyka */
+  .grid.grid-cols-1,
+  .grid.grid-cols-3 {
+    display: block !important;
+    page-break-inside: avoid;
+  }
+
+  .bg-white.p-4.rounded-lg {
+    margin-bottom: 0.5cm;
+    padding: 0.5cm !important;
+    border: 1pt solid #000 !important;
+    page-break-inside: avoid;
+    display: block !important;
+  }
+
+  /* Karty ekspertów */
+  .grid.grid-cols-1.lg\\:grid-cols-3 {
+    display: block !important;
+  }
+
+  .rounded-xl.border {
+    margin-bottom: 1cm;
+    page-break-inside: avoid;
+    border: 1pt solid #000 !important;
+    padding: 0.8cm !important;
+    display: block !important;
+  }
+
+  /* Cytowania */
+  .bg-white.rounded-xl.border {
+    margin-bottom: 1cm;
+    page-break-inside: avoid;
+    border: 1pt solid #000 !important;
+    display: block !important;
+  }
+
+  .text-sm.bg-gray-50.p-3 {
+    background: #f9fafb !important;
+    border-left: 4pt solid #000 !important;
+    padding: 0.5cm !important;
+    margin: 0.5cm 0 !important;
+    font-style: italic;
+    display: block !important;
+  }
+
+  /* Stopka */
+  .mt-12.pt-8.border-t {
+    margin-top: 2cm;
+    padding-top: 0.5cm;
+    border-top: 1pt solid #000 !important;
+    font-size: 10pt;
+    text-align: center;
+    display: block !important;
+  }
+
+  /* Kolory dla ryzyka - konwersja na czarno-białe z oznaczeniami */
+  .text-red-600,
+  .bg-red-100 {
+    background: #f0f0f0 !important;
+    color: #000 !important;
+    border: 1pt solid #000 !important;
+  }
+
+  .text-yellow-600,
+  .bg-yellow-100 {
+    background: #e5e5e5 !important;
+    color: #000 !important;
+    border: 1pt solid #000 !important;
+  }
+
+  .text-green-600,
+  .bg-green-100 {
+    background: #f5f5f5 !important;
+    color: #000 !important;
+    border: 1pt solid #000 !important;
+  }
+
+  /* Ukryj ikony i elementy dekoracyjne */
+  svg,
+  [class*="icon"],
+  .w-4,
+  .w-5,
+  .w-6 {
+    display: none !important;
+  }
+
+  /* Linki - pokaż URL */
+  a[href]::after {
+    content: " (" attr(href) ")";
+    font-size: 10pt;
+    color: #666;
+  }
+
+  a[href^="#"]::after {
+    content: "";
+  }
+
+  /* Unikaj łamania stron w kluczowych miejscach */
+  .bg-gradient-to-r,
+  .bg-white.rounded-xl.p-6 {
+    page-break-inside: avoid;
+  }
+
+  /* Marginesy dla sekcji */
+  .mb-8,
+  .mb-4 {
+    margin-bottom: 0.8cm !important;
+  }
+
+  /* Data generowania */
+  .text-sm.text-gray-500 {
+    font-size: 10pt;
+    color: #666 !important;
+  }
+
+  /* Ukryj animacje */
+  .animate-fade-in,
+  .tab-content-enter {
+    animation: none !important;
+  }
+
+  /* Wymuszenie białego tła */
+  .bg-slate-50,
+  .bg-gray-50,
+  .bg-white {
+    background: white !important;
+  }
+
+  /* Tekst zawsze czarny */
+  .text-gray-800,
+  .text-slate-200,
+  .text-gray-600,
+  .text-slate-300 {
+    color: #000 !important;
+  }
+
+  /* Ukryj elementy interaktywne */
+  .hover\:bg-gray-50,
+  .hover\:shadow-md,
+  .transition-all,
+  .transition-colors {
+    transition: none !important;
+  }
+
+  /* Break pages dla głównych sekcji */
+  .mb-8:not(:first-child) {
+    page-break-before: auto;
+  }
+
+  /* Zapewnij, że długie sekcje nie są dzielone */
+  .space-y-6 > * {
+    page-break-inside: avoid;
+  }
+
+  /* WAŻNE: Pokaż wszystkie View i divy z zawartością */
+  .space-y-6,
+  .space-y-6 > *,
+  div[class*="mb-8"],
+  div[class*="mb-4"] {
+    display: block !important;
+  }
+
+  /* Pokaż wszystkie sekcje Dashboard niezależnie od aktywnego taba */
+  .min-h-\\[400px\\] > div,
+  .tab-content-enter > div {
+    display: block !important;
+  }
+
+  /* WYMUSZENIE: Pokaż zawartość raportu - najważniejsze */
+  /* Sekcja eksportu z podglądem raportu */
+  div[class*="bg-white"][class*="rounded-xl"][class*="shadow-lg"],
+  div[class*="max-w-4xl"][class*="mx-auto"] {
+    display: flex !important;
+    flex-direction: column !important;
+    visibility: visible !important;
+  }
+
+  /* Zawartość wewnątrz sekcji eksportu */
+  div[class*="p-12"][class*="font-serif"],
+  div[class*="p-12"][class*="font-serif"] > *,
+  div[class*="p-12"] {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  /* Wszystkie teksty i paragrafy */
+  p, h1, h2, h3, h4, h5, h6, span, div {
+    color: #000 !important;
+  }
+
+  /* Upewnij się, że główny kontener Dashboard jest widoczny */
+  div[class*="max-w-6xl"],
+  main > div[class*="max-w-6xl"] {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  /* Wymuś pokazanie wszystkich sekcji z zawartością tekstową */
+  div[class*="mb-8"],
+  div[class*="mb-4"],
+  div[class*="mb-10"] {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  /* Ukryj tylko puste divy i separatory */
+  div:empty:not([class*="w-full"]):not([class*="h-px"]) {
+    display: none !important;
+  }
+}
