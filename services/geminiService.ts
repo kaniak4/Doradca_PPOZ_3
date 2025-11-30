@@ -1,120 +1,183 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { AnalysisResult, ExpertRole } from "../types";
+import { AnalysisResult, AnalysisMode } from "../types";
 
-const SYSTEM_INSTRUCTION = `
-Jesteś silnikiem symulacyjnym aplikacji "Doradca PPOŻ". Twoim zadaniem jest przeanalizowanie problemu użytkownika z zakresu BHP i ochrony przeciwpożarowej (PPOŻ) z perspektywy trzech wirtualnych ekspertów:
+//const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? '' : 'http://localhost:3001');
+const REQUEST_TIMEOUT = 60000; // 60 sekund
 
-1. **Legislator (Prawnik)**: Formalista. Skupia się wyłącznie na Ustawie o ochronie przeciwpożarowej, Kodeksie Pracy i Rozporządzeniach MSWiA. Cytuje konkretne paragrafy. Nie obchodzą go koszty, liczy się litera prawa.
-2. **Praktyk Biznesowy**: Pragmatyk. Szuka rozwiązań "good enough". Zależy mu na niskich kosztach, szybkości wdrożenia i tym, by nie paraliżować pracy firmy. Często szuka zamienników lub rozwiązań organizacyjnych zamiast drogich technicznych.
-3. **Audytor Ryzyka**: Analityk. Waży opinie Prawnika i Praktyka. Ocenia ryzyko mandatu vs koszt wdrożenia vs ryzyko realnego pożaru. Daje ostateczną, wyważoną rekomendację.
+/**
+ * Typy błędów dla lepszej obsługi
+ */
+export enum ErrorType {
+  NETWORK = 'NETWORK',
+  TIMEOUT = 'TIMEOUT',
+  SERVER_ERROR = 'SERVER_ERROR',
+  CLIENT_ERROR = 'CLIENT_ERROR',
+  RATE_LIMIT = 'RATE_LIMIT',
+  ABORTED = 'ABORTED',
+  UNKNOWN = 'UNKNOWN'
+}
 
-Twoja odpowiedź musi być w formacie JSON i zawierać analizę każdego z nich.
-`;
+export class AnalysisError extends Error {
+  constructor(
+    message: string,
+    public type: ErrorType,
+    public statusCode?: number
+  ) {
+    super(message);
+    this.name = 'AnalysisError';
+  }
+}
 
-const RESPONSE_SCHEMA: Schema = {
-  type: Type.OBJECT,
-  properties: {
-    summary: { type: Type.STRING, description: "Krótkie streszczenie problemu." },
-    finalRecommendation: { type: Type.STRING, description: "Ostateczna, konkretna porada dla użytkownika łącząca wszystkie perspektywy." },
-    riskAssessment: {
-      type: Type.OBJECT,
-      properties: {
-        legalRisk: { type: Type.STRING, enum: ["Low", "Medium", "High"] },
-        financialRisk: { type: Type.STRING, enum: ["Low", "Medium", "High"] },
-        safetyRisk: { type: Type.STRING, enum: ["Low", "Medium", "High"] }
-      },
-      required: ["legalRisk", "financialRisk", "safetyRisk"]
-    },
-    agents: {
-      type: Type.OBJECT,
-      properties: {
-        legislator: {
-          type: Type.OBJECT,
-          properties: {
-            role: { type: Type.STRING, enum: ["Legislator"] },
-            title: { type: Type.STRING, description: "Tytuł stanowiska np. Radca Prawny ds. PPOŻ" },
-            analysis: { type: Type.STRING, description: "Szczegółowa opinia prawna." },
-            keyPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
-            recommendationScore: { type: Type.NUMBER, description: "Ocena surowości/ważności od 0 do 100" }
-          },
-          required: ["role", "title", "analysis", "keyPoints", "recommendationScore"]
-        },
-        practitioner: {
-          type: Type.OBJECT,
-          properties: {
-            role: { type: Type.STRING, enum: ["Praktyk"] },
-            title: { type: Type.STRING, description: "Tytuł np. Kierownik Obiektu" },
-            analysis: { type: Type.STRING, description: "Opinia praktyczna i kosztowa." },
-            keyPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
-            recommendationScore: { type: Type.NUMBER }
-          },
-          required: ["role", "title", "analysis", "keyPoints", "recommendationScore"]
-        },
-        auditor: {
-          type: Type.OBJECT,
-          properties: {
-            role: { type: Type.STRING, enum: ["Audytor"] },
-            title: { type: Type.STRING, description: "Tytuł np. Rzeczoznawca PPOŻ" },
-            analysis: { type: Type.STRING, description: "Synteza ryzyka i werdykt." },
-            keyPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
-            recommendationScore: { type: Type.NUMBER }
-          },
-          required: ["role", "title", "analysis", "keyPoints", "recommendationScore"]
-        }
-      },
-      required: ["legislator", "practitioner", "auditor"]
-    },
-    citations: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          source: { type: Type.STRING, description: "Nazwa aktu prawnego lub normy." },
-          reliability: { type: Type.STRING, enum: ["High", "Medium", "Low"] },
-          snippet: { type: Type.STRING, description: "Krótki cytat lub numer artykułu." },
-          url: { type: Type.STRING, description: "Link do ISAP lub wiarygodnego źródła (opcjonalnie)." }
-        },
-        required: ["source", "reliability", "snippet"]
-      }
-    }
-  },
-  required: ["summary", "finalRecommendation", "agents", "riskAssessment", "citations"]
+/**
+ * Sprawdza czy backend jest dostępny
+ */
+export const checkBackendHealth = async (): Promise<boolean> => {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 sekund dla health check
+    
+    const response = await fetch(`${API_BASE_URL}/health`, {
+      method: 'GET',
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    return response.ok;
+  } catch (error) {
+    return false;
+  }
 };
 
-export const analyzeSafetyQuery = async (query: string): Promise<AnalysisResult> => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) throw new Error("API Key not found");
+/**
+ * Wywołuje backend API do analizy zapytania PPOŻ/BHP
+ * API Key jest teraz bezpiecznie przechowywany tylko w backendzie
+ * @param query - Zapytanie do analizy
+ * @param mode - Tryb analizy ('information' lub 'problem')
+ * @param signal - AbortSignal do anulowania zapytania
+ */
+export const analyzeSafetyQuery = async (
+  query: string,
+  mode: AnalysisMode = 'problem',
+  signal?: AbortSignal
+): Promise<AnalysisResult> => {
+  if (!query || !query.trim()) {
+    throw new AnalysisError("Zapytanie nie może być puste", ErrorType.CLIENT_ERROR);
+  }
 
-  const ai = new GoogleGenAI({ apiKey });
+  // Utwórz timeout controller
+  const timeoutController = new AbortController();
+  let isTimeout = false;
+  const timeoutId = setTimeout(() => {
+    isTimeout = true;
+    timeoutController.abort();
+  }, REQUEST_TIMEOUT);
 
-  // Using gemini-2.5-flash for speed and efficiency
-  const model = "gemini-2.5-flash";
+  // Połącz oba sygnały (użytkownik i timeout)
+  const combinedSignal = signal 
+    ? (() => {
+        const combined = new AbortController();
+        signal.addEventListener('abort', () => {
+          clearTimeout(timeoutId);
+          combined.abort();
+        });
+        timeoutController.signal.addEventListener('abort', () => combined.abort());
+        return combined.signal;
+      })()
+    : timeoutController.signal;
 
   try {
-    const response = await ai.models.generateContent({
-      model,
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: `Analizuj następujący problem PPOŻ/BHP: "${query}"` }]
-        }
-      ],
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        responseMimeType: "application/json",
-        responseSchema: RESPONSE_SCHEMA,
-        temperature: 0.4, // Keep it relatively deterministic but creative enough for different personas
-      }
+    const response = await fetch(`${API_BASE_URL}/api/analyze`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query, mode }),
+      signal: combinedSignal,
     });
 
-    const text = response.text;
-    if (!text) throw new Error("No response from AI");
+    clearTimeout(timeoutId);
 
-    const result = JSON.parse(text) as AnalysisResult;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      
+      // Różnicuj błędy na podstawie status code
+      if (response.status === 429) {
+        // Rate limit exceeded
+        throw new AnalysisError(
+          errorData.message || errorData.error || 'Przekroczono limit zapytań. Spróbuj ponownie za chwilę.',
+          ErrorType.RATE_LIMIT,
+          response.status
+        );
+      } else if (response.status >= 500) {
+        throw new AnalysisError(
+          errorData.error || 'Błąd serwera. Spróbuj ponownie za chwilę.',
+          ErrorType.SERVER_ERROR,
+          response.status
+        );
+      } else if (response.status === 401 || response.status === 403) {
+        throw new AnalysisError(
+          'Brak autoryzacji. Skontaktuj się z administratorem.',
+          ErrorType.CLIENT_ERROR,
+          response.status
+        );
+      } else if (response.status === 400) {
+        throw new AnalysisError(
+          errorData.error || 'Nieprawidłowe zapytanie. Sprawdź wprowadzone dane.',
+          ErrorType.CLIENT_ERROR,
+          response.status
+        );
+      } else {
+        throw new AnalysisError(
+          errorData.error || `Błąd HTTP: ${response.status}`,
+          ErrorType.CLIENT_ERROR,
+          response.status
+        );
+      }
+    }
+
+    const result = await response.json() as AnalysisResult;
     return result;
 
   } catch (error) {
-    console.error("Gemini Analysis Error:", error);
-    throw error;
+    clearTimeout(timeoutId);
+    console.error("API Error:", error);
+    
+    // Sprawdź typ błędu
+    if (error instanceof AnalysisError) {
+      throw error;
+    }
+    
+    // Sprawdź czy błąd jest spowodowany anulowaniem
+    if (error instanceof Error && error.name === 'AbortError') {
+      // Sprawdź czy to timeout czy użytkownik anulował
+      if (isTimeout) {
+        throw new AnalysisError(
+          'Przekroczono limit czasu oczekiwania (60 sekund). Spróbuj ponownie.',
+          ErrorType.TIMEOUT
+        );
+      }
+      throw new AnalysisError("Zapytanie zostało anulowane", ErrorType.ABORTED);
+    }
+    
+    // Błąd sieci (brak połączenia)
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new AnalysisError(
+        'Brak połączenia z serwerem. Sprawdź połączenie internetowe.',
+        ErrorType.NETWORK
+      );
+    }
+    
+    // Nieznany błąd
+    if (error instanceof Error) {
+      throw new AnalysisError(
+        error.message || 'Wystąpił nieoczekiwany błąd. Spróbuj ponownie.',
+        ErrorType.UNKNOWN
+      );
+    }
+    
+    throw new AnalysisError(
+      'Wystąpił błąd podczas komunikacji z serwerem',
+      ErrorType.UNKNOWN
+    );
   }
 };

@@ -5,7 +5,7 @@ import { z } from 'zod';
  * Zapewnia type safety i walidację struktury danych
  */
 
-const ExpertRoleSchema = z.enum(['Legislator', 'Praktyk', 'Audytor']);
+const ExpertRoleSchema = z.enum(['Legislator', 'Praktyk', 'Audytor', 'Ekspert Prawny']);
 
 const AgentResponseSchema = z.object({
   role: ExpertRoleSchema,
@@ -20,27 +20,42 @@ const CitationSchema = z.object({
   reliability: z.enum(['Wysokie', 'Średnie', 'Niskie']),
   snippet: z.string().min(1, 'Cytat nie może być pusty'),
   url: z.string().url().optional().or(z.literal('')),
+  verified: z.boolean().optional(), // Zawsze true dla RAG (bo pochodzi z dokumentów)
+  chunkId: z.string().nullable().optional(), // ID chunka w vectorstore (może być null)
+  articleNumber: z.string().nullable().optional(), // Numer artykułu/paragrafu (może być null)
+  pageNumber: z.number().nullable().optional(), // Numer strony w PDF (może być null)
 });
 
 const RiskLevelSchema = z.enum(['Niskie', 'Średnie', 'Wysokie']);
 
 export const AnalysisResultSchema = z.object({
+  mode: z.enum(['information', 'problem']).optional(),
   summary: z.string().min(10, 'Podsumowanie musi mieć co najmniej 10 znaków'),
   finalRecommendation: z.string().min(10, 'Rekomendacja musi mieć co najmniej 10 znaków'),
-  agents: z.object({
-    legislator: AgentResponseSchema.refine(
-      (agent) => agent.role === 'Legislator',
-      { message: 'Legislator musi mieć role "Legislator"' }
-    ),
-    practitioner: AgentResponseSchema.refine(
-      (agent) => agent.role === 'Praktyk',
-      { message: 'Practitioner musi mieć role "Praktyk"' }
-    ),
-    auditor: AgentResponseSchema.refine(
-      (agent) => agent.role === 'Audytor',
-      { message: 'Auditor musi mieć role "Audytor"' }
-    ),
-  }),
+  agents: z.union([
+    // Tryb "problem" - trzy agenty
+    z.object({
+      legislator: AgentResponseSchema.refine(
+        (agent) => agent.role === 'Legislator',
+        { message: 'Legislator musi mieć role "Legislator"' }
+      ),
+      practitioner: AgentResponseSchema.refine(
+        (agent) => agent.role === 'Praktyk',
+        { message: 'Practitioner musi mieć role "Praktyk"' }
+      ),
+      auditor: AgentResponseSchema.refine(
+        (agent) => agent.role === 'Audytor',
+        { message: 'Auditor musi mieć role "Audytor"' }
+      ),
+    }),
+    // Tryb "information" - jeden agent
+    z.object({
+      legalExpert: AgentResponseSchema.refine(
+        (agent) => agent.role === 'Ekspert Prawny',
+        { message: 'LegalExpert musi mieć role "Ekspert Prawny"' }
+      ),
+    }),
+  ]),
   citations: z.array(CitationSchema),
   riskAssessment: z.object({
     legalRisk: RiskLevelSchema,
