@@ -12,6 +12,15 @@ dist
 dist-ssr
 *.local
 
+# Environment variables - zawierają API Keys
+.env
+.env.local
+.env.*.local
+
+# Vectorstore (ChromaDB)
+server/vectorstore/
+vectorstore/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
