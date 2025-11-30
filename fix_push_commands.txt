@@ -1,0 +1,26 @@
+# Komendy do wklejenia do terminala - rozwiązanie konfliktu push
+
+# Krok 1: Pobierz zmiany z remote
+git fetch origin
+
+# Krok 2: Sprawdź różnice (opcjonalne - możesz pominąć)
+git log origin/main..HEAD --oneline
+git log HEAD..origin/main --oneline
+
+# Krok 3: Zintegruj zmiany (wybierz jedną opcję):
+
+# Opcja A: Rebase (zalecane - zachowa liniową historię)
+git pull --rebase origin main
+
+# LUB Opcja B: Merge (utworzy merge commit)
+# git pull origin main
+
+# Krok 4: Jeśli wystąpią konflikty, rozwiąż je i wykonaj:
+# git add .
+# git rebase --continue  # (jeśli użyłeś rebase)
+# LUB
+# git commit  # (jeśli użyłeś merge)
+
+# Krok 5: Push
+git push origin main
+
