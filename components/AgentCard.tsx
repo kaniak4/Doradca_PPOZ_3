@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { AgentResponse, ExpertRole } from '../types';
 import Tooltip from './Tooltip';
 import { Scale, HardHat, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { formatMarkdownText } from '../utils/textFormatter';
 
 interface AgentCardProps {
   agent: AgentResponse;
@@ -69,7 +70,9 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent }) => {
       </div>
 
       <div className="prose prose-sm text-gray-700 dark:text-slate-300 mb-4">
-        <p className="leading-relaxed">{agent.analysis}</p>
+        <div className="leading-relaxed text-justify whitespace-pre-line">
+          {formatMarkdownText(agent.analysis)}
+        </div>
       </div>
 
       <div className="bg-white/60 dark:bg-slate-800/60 rounded-lg p-4">

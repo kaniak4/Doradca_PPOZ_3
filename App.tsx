@@ -1,10 +1,12 @@
-import React, { lazy, Suspense, useEffect } from 'react';
+import React, { lazy, Suspense, useEffect, useState, useRef } from 'react';
 import ErrorBoundary from './components/ErrorBoundary';
 import Tooltip from './components/Tooltip';
-import { useAnalysis, useTheme } from './hooks';
+import Sidebar from './components/Sidebar';
+import { useAnalysis, useTheme, useHistory } from './hooks';
 import { ErrorType } from './services/geminiService';
 import { getSharedAnalysis } from './services/shareService';
-import { Flame, Search, X, AlertCircle, RefreshCw, Wifi, WifiOff, Moon, Sun } from 'lucide-react';
+import { Flame, Search, X, AlertCircle, RefreshCw, Wifi, WifiOff, Moon, Sun, History, HelpCircle } from 'lucide-react';
+import { AnalysisResult, AnalysisMode } from './types';
 
 // Lazy loading dla Dashboard - ładuje się tylko gdy jest potrzebny
 const Dashboard = lazy(() => import('./components/Dashboard'));
@@ -29,6 +31,14 @@ const App: React.FC = () => {
     getStageProgress,
     setResult: setAnalysisResult,
   } = useAnalysis();
+  
+  const { addEntry, history } = useHistory();
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>('problem');
+  const currentAnalysisIdRef = useRef<string | null>(null);
+  const analysisSourceRef = useRef<'new' | 'history' | 'shared' | null>(null); // Źródło analizy
+  const savedAnalysisKeyRef = useRef<string | null>(null); // Klucz zapisanej analizy (query + summary)
 
   // Obsługa odczytu udostępnionej analizy z URL
   useEffect(() => {
@@ -36,32 +46,170 @@ const App: React.FC = () => {
     const shareId = urlParams.get('share');
     
     if (shareId && !result && !isLoading) {
+      analysisSourceRef.current = 'shared'; // Oznacz jako udostępniona
       getSharedAnalysis(shareId)
         .then((sharedResult) => {
           if (sharedResult) {
             setAnalysisResult(sharedResult);
+            // Ustaw tryb na podstawie wyniku
+            if (sharedResult.mode) {
+              setAnalysisMode(sharedResult.mode);
+            }
             // Opcjonalnie: wyczyść parametr z URL (bez przeładowania)
             window.history.replaceState({}, '', window.location.pathname);
           } else {
             // Analiza nie została znaleziona lub wygasła
             console.warn('Shared analysis not found or expired');
+            analysisSourceRef.current = null;
           }
         })
         .catch((err) => {
           console.error('Error loading shared analysis:', err);
+          analysisSourceRef.current = null;
         });
     }
   }, []); // Uruchom tylko raz przy mount
 
+  // Ustaw tryb na podstawie wyniku (jeśli wynik już istnieje)
+  useEffect(() => {
+    if (result && result.mode) {
+      setAnalysisMode(result.mode);
+    }
+  }, [result]);
+
+  // Zapisz analizę do historii po zakończeniu
+  useEffect(() => {
+    if (!result || !query.trim() || isLoading) {
+      return;
+    }
+
+    // Stwórz unikalny klucz dla tej analizy
+    const analysisKey = `${query.trim()}|${result.summary}`;
+    
+    // Sprawdź źródło analizy
+    const source = analysisSourceRef.current;
+    
+    // Nie zapisuj analiz z historii lub udostępnionych
+    if (source === 'history' || source === 'shared') {
+      analysisSourceRef.current = null; // Reset flagi
+      savedAnalysisKeyRef.current = analysisKey; // Zapamiętaj jako już załadowaną
+      // Znajdź ID w historii jeśli to analiza z historii
+      if (source === 'history') {
+        const existingEntry = history.find(h => 
+          h.query.trim() === query.trim() && 
+          h.summary === result.summary
+        );
+        if (existingEntry) {
+          currentAnalysisIdRef.current = existingEntry.id;
+        }
+      }
+      return;
+    }
+
+    // Sprawdź czy to nie jest ta sama analiza co ostatnio zapisana
+    if (savedAnalysisKeyRef.current === analysisKey) {
+      return; // Już zapisana
+    }
+
+    // Sprawdź czy analiza już istnieje w historii (po query + summary)
+    const existingEntry = history.find(h => 
+      h.query.trim() === query.trim() && 
+      h.summary === result.summary
+    );
+
+    // Jeśli już istnieje, nie zapisuj ponownie, tylko użyj jej ID
+    if (existingEntry) {
+      currentAnalysisIdRef.current = existingEntry.id;
+      savedAnalysisKeyRef.current = analysisKey;
+      return;
+    }
+
+    // To nowa analiza - zapisz ją
+    try {
+      addEntry(result, query);
+      savedAnalysisKeyRef.current = analysisKey;
+    } catch (error) {
+      console.error('Błąd podczas zapisywania do historii:', error);
+    }
+    
+    analysisSourceRef.current = null; // Reset flagi
+  }, [result, query, isLoading, addEntry]);
+
+  // Znajdź ID nowo zapisanej analizy po aktualizacji historii
+  useEffect(() => {
+    if (result && query.trim() && savedAnalysisKeyRef.current) {
+      const analysisKey = `${query.trim()}|${result.summary}`;
+      if (savedAnalysisKeyRef.current === analysisKey) {
+        const entry = history.find(h => 
+          h.query.trim() === query.trim() && 
+          h.summary === result.summary
+        );
+        if (entry) {
+          currentAnalysisIdRef.current = entry.id;
+        }
+      }
+    }
+  }, [history, result, query]);
+
+  // Obsługa przywrócenia analizy z historii
+  const handleSelectFromHistory = (analysisResult: AnalysisResult, originalQuery: string) => {
+    analysisSourceRef.current = 'history'; // Oznacz jako z historii
+    setAnalysisResult(analysisResult);
+    setQuery(originalQuery);
+    setSidebarOpen(false);
+    // Znajdź ID tej analizy w historii
+    const entry = history.find(h => 
+      h.query.trim() === originalQuery.trim() && 
+      h.summary === analysisResult.summary
+    );
+    if (entry) {
+      currentAnalysisIdRef.current = entry.id;
+      savedAnalysisKeyRef.current = `${originalQuery.trim()}|${analysisResult.summary}`;
+    }
+    // Przewiń do góry
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Znajdź ID bieżącej analizy w historii
+  const currentAnalysisId = currentAnalysisIdRef.current || 
+    (result && query && history.find(h => 
+      h.query.trim() === query.trim() && 
+      h.summary === result.summary &&
+      Math.abs(h.timestamp - Date.now()) < 60000 // Z ostatniej minuty
+    )?.id) || 
+    null;
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey && !isLoading) {
       e.preventDefault();
-      handleAnalyze();
+      handleAnalyze(analysisMode);
     }
   };
 
   const getThemeIcon = () => {
     return theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />;
+  };
+
+  const handleLogoClick = () => {
+    if (result || isLoading) {
+      // Jeśli jest wynik lub trwa ładowanie, pokaż monit
+      setShowExitConfirm(true);
+    } else {
+      // Jeśli nie ma wyniku, po prostu przewiń na górę
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleConfirmExit = () => {
+    setAnalysisResult(null);
+    setQuery('');
+    // Błędy są czyszczone automatycznie przez useAnalysis przy zmianie query
+    setShowExitConfirm(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelExit = () => {
+    setShowExitConfirm(false);
   };
 
   return (
@@ -70,17 +218,21 @@ const App: React.FC = () => {
         {/* Header */}
         <header className="bg-slate-900 dark:bg-slate-950 text-white shadow-lg sticky top-0 z-50 border-b border-slate-800 dark:border-slate-800 no-print">
           <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="bg-orange-600 dark:bg-orange-500 p-2 rounded-lg shadow-orange-500/20 shadow-lg">
+            <button 
+              onClick={handleLogoClick}
+              className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer text-left"
+              aria-label="Powrót do ekranu startowego"
+            >
+              <div className="bg-orange-600 dark:bg-orange-500 p-2 rounded-lg shadow-orange-500/20 shadow-lg flex-shrink-0">
                 <Flame className="w-6 h-6 text-white" />
               </div>
-              <div>
-                <h1 className="text-xl font-bold tracking-tight">Doradca PPOŻ</h1>
-                <p className="text-xs text-slate-400 dark:text-slate-500">System Wsparcia Decyzji AI</p>
+              <div className="flex flex-col">
+                <h1 className="text-xl font-bold tracking-tight leading-tight">Doradca PPOŻ</h1>
+                <p className="text-xs text-slate-400 dark:text-slate-500 leading-tight">System Wsparcia Decyzji AI</p>
               </div>
-            </div>
+            </button>
             <div className="hidden md:flex items-center gap-4 text-sm text-slate-300 dark:text-slate-400">
-              <span>v1.0.0 (Mockup)</span>
+              <span>v2.0 (Mockup)</span>
               <div className="w-px h-4 bg-slate-700 dark:bg-slate-600"></div>
               {backendHealth !== null && (
                 <span className="flex items-center gap-1">
@@ -99,6 +251,27 @@ const App: React.FC = () => {
               )}
               <div className="w-px h-4 bg-slate-700 dark:bg-slate-600"></div>
               <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className={`p-2 rounded-lg transition-colors flex items-center gap-2 group relative ${
+                  sidebarOpen 
+                    ? 'bg-slate-800 dark:bg-slate-800' 
+                    : 'hover:bg-slate-800 dark:hover:bg-slate-800'
+                }`}
+                aria-label={sidebarOpen ? "Zamknij historię analiz" : "Otwórz historię analiz"}
+                title={sidebarOpen ? "Zamknij historię analiz" : "Historia analiz"}
+              >
+                <History className="w-4 h-4" />
+                {history.length > 0 && (
+                  <span className="absolute -top-1 -right-1 px-1.5 py-0.5 text-xs font-bold bg-orange-600 dark:bg-orange-500 text-white rounded-full min-w-[18px] flex items-center justify-center">
+                    {history.length > 9 ? '9+' : history.length}
+                  </span>
+                )}
+                <span className="text-xs opacity-70 group-hover:opacity-100">
+                  Historia
+                </span>
+              </button>
+              <div className="w-px h-4 bg-slate-700 dark:bg-slate-600"></div>
+              <button
                 onClick={toggleTheme}
                 className="p-2 rounded-lg hover:bg-slate-800 dark:hover:bg-slate-800 transition-colors flex items-center gap-2 group"
                 aria-label={`Przełącz na tryb ${theme === 'dark' ? 'jasny' : 'ciemny'}`}
@@ -110,6 +283,23 @@ const App: React.FC = () => {
                 </span>
               </button>
             </div>
+            {/* Mobile: przycisk historii */}
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className={`md:hidden p-2 rounded-lg transition-colors relative ${
+                sidebarOpen 
+                  ? 'bg-slate-800 dark:bg-slate-800' 
+                  : 'hover:bg-slate-800 dark:hover:bg-slate-800'
+              }`}
+              aria-label={sidebarOpen ? "Zamknij historię analiz" : "Otwórz historię analiz"}
+            >
+              <History className="w-5 h-5" />
+              {history.length > 0 && (
+                <span className="absolute -top-1 -right-1 px-1.5 py-0.5 text-xs font-bold bg-orange-600 dark:bg-orange-500 text-white rounded-full min-w-[18px] flex items-center justify-center">
+                  {history.length > 9 ? '9+' : history.length}
+                </span>
+              )}
+            </button>
           </div>
         </header>
 
@@ -120,12 +310,60 @@ const App: React.FC = () => {
           <div className="mb-8 max-w-3xl mx-auto text-center no-print">
               {!result && (
                    <div className="mb-8">
-                      <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-100 mb-3">Opisz problem PPOŻ/BHP</h2>
+                      <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-100 mb-3">
+                        {analysisMode === 'information' ? 'Zapytaj o przepisy PPOŻ/BHP' : 'Opisz problem PPOŻ/BHP'}
+                      </h2>
                       <p className="text-slate-500 dark:text-slate-400">
-                          Otrzymaj analizę od Prawnika, Praktyka i Audytora w 10 sekund.
+                        {analysisMode === 'information' 
+                          ? 'Otrzymaj szczegółową odpowiedź opartą na przepisach prawnych.'
+                          : 'Otrzymaj analizę od Prawnika, Praktyka i Audytora w 10 sekund.'}
                       </p>
                    </div>
               )}
+              
+              {/* Mode Selector */}
+              <div className="mb-4 flex items-center justify-center gap-6">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input
+                    type="radio"
+                    name="analysisMode"
+                    value="information"
+                    checked={analysisMode === 'information'}
+                    onChange={(e) => setAnalysisMode(e.target.value as AnalysisMode)}
+                    disabled={isLoading}
+                    className="w-4 h-4 text-blue-600 dark:text-blue-400 border-gray-300 dark:border-slate-600 focus:ring-blue-500 dark:focus:ring-blue-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                  <span className="text-sm font-medium text-gray-700 dark:text-slate-300 flex items-center gap-1">
+                    Informacja
+                    <Tooltip
+                      content="Tryb dla pytań o przepisy i regulacje. System znajdzie wszystkie odpowiednie przepisy prawne i przedstawi szczegółową odpowiedź opartą wyłącznie na źródłach prawnych. Idealny dla pytań typu 'Czy mogę...?' lub 'Jaki jest wymóg...?'"
+                      icon
+                    >
+                      <HelpCircle className="w-4 h-4 text-gray-400 dark:text-slate-500 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors" />
+                    </Tooltip>
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input
+                    type="radio"
+                    name="analysisMode"
+                    value="problem"
+                    checked={analysisMode === 'problem'}
+                    onChange={(e) => setAnalysisMode(e.target.value as AnalysisMode)}
+                    disabled={isLoading}
+                    className="w-4 h-4 text-blue-600 dark:text-blue-400 border-gray-300 dark:border-slate-600 focus:ring-blue-500 dark:focus:ring-blue-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                  <span className="text-sm font-medium text-gray-700 dark:text-slate-300 flex items-center gap-1">
+                    Problem
+                    <Tooltip
+                      content="Tryb dla kompleksowej analizy problemu. System przedstawi trzy perspektywy: Prawnika (zgodność z przepisami), Praktyka Biznesowego (koszty i praktyczność) oraz Audytora Ryzyka (synteza i rekomendacja). Idealny dla złożonych sytuacji wymagających decyzji."
+                      icon
+                    >
+                      <HelpCircle className="w-4 h-4 text-gray-400 dark:text-slate-500 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors" />
+                    </Tooltip>
+                  </span>
+                </label>
+              </div>
               
               <div className="relative group">
                   <div className="absolute -inset-0.5 bg-orange-600 dark:bg-orange-500 rounded-xl blur opacity-30 dark:opacity-20 group-hover:opacity-50 dark:group-hover:opacity-30 transition duration-1000"></div>
@@ -167,7 +405,7 @@ const App: React.FC = () => {
                               </button>
                           )}
                           <button
-                              onClick={handleAnalyze}
+                              onClick={() => handleAnalyze(analysisMode)}
                               disabled={isLoading || !query.trim()}
                               className={`px-8 py-3 rounded-lg font-semibold text-white flex items-center justify-center gap-2 transition-all
                                   ${isLoading || !query.trim() 
@@ -221,7 +459,7 @@ const App: React.FC = () => {
               {!result && !isLoading && (
                   <div className="mt-6 flex flex-wrap justify-center gap-2 text-sm">
                       <span className="text-slate-400 dark:text-slate-500">Spróbuj zapytać o:</span>
-                      <button onClick={() => setQuery("Jaka jest wymagana szerokość drogi ewakuacyjnej w biurze dla 20 osób?")} className="px-3 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 dark:hover:border-blue-700 transition-colors">
+                      <button onClick={() => setQuery("Jaka jest wymagana szerokość drogi ewakuacyjnej w biurze dla 200 osób?")} className="px-3 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 dark:hover:border-blue-700 transition-colors">
                           Szerokość ewakuacji
                       </button>
                       <button onClick={() => setQuery("Czy gaśnice muszą wisieć na ścianie czy mogą stać na podłodze?")} className="px-3 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 dark:hover:border-blue-700 transition-colors">
@@ -260,7 +498,7 @@ const App: React.FC = () => {
                   )}
                 </div>
                 <button
-                  onClick={handleRetry}
+                  onClick={() => handleRetry(analysisMode)}
                   disabled={isLoading}
                   className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 border border-current rounded-lg font-medium text-sm flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -290,6 +528,44 @@ const App: React.FC = () => {
 
         </main>
 
+        {/* Dialog potwierdzający wyjście */}
+        {showExitConfirm && (
+          <div className="fixed inset-0 bg-black/50 dark:bg-black/70 z-[100] flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-md w-full border border-gray-200 dark:border-slate-700 animate-fade-in">
+              <div className="p-6">
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="bg-orange-100 dark:bg-orange-900/30 p-3 rounded-lg">
+                    <AlertCircle className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-slate-200 mb-2">
+                      Opuścić raport?
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-slate-400">
+                      Powrót do ekranu startowego spowoduje utratę bieżącego raportu. 
+                      {result && ' Upewnij się, że zapisałeś raport (PDF/DOCX) jeśli jest potrzebny.'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={handleCancelExit}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-lg transition-colors"
+                  >
+                    Anuluj
+                  </button>
+                  <button
+                    onClick={handleConfirmExit}
+                    className="px-4 py-2 text-sm font-medium text-white bg-orange-600 dark:bg-orange-500 hover:bg-orange-700 dark:hover:bg-orange-600 rounded-lg transition-colors"
+                  >
+                    Opuść raport
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
         <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 mt-auto no-print">
           <div className="max-w-6xl mx-auto px-4 py-6 text-center text-slate-400 dark:text-slate-500 text-sm">
@@ -297,6 +573,14 @@ const App: React.FC = () => {
             <p className="mt-1">Pamiętaj: Sztuczna inteligencja może popełniać błędy. Zawsze konsultuj decyzje z uprawnionym rzeczoznawcą.</p>
           </div>
         </footer>
+
+        {/* Sidebar */}
+        <Sidebar
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          onSelectAnalysis={handleSelectFromHistory}
+          currentAnalysisId={currentAnalysisId}
+        />
       </div>
     </ErrorBoundary>
   );

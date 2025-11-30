@@ -8,8 +8,9 @@ import {
   CitationsSkeleton, 
   ExportSkeleton 
 } from './SkeletonLoaders';
-import { FileText, Users, BookOpen, Download, CheckCircle, TrendingUp, FileDown, Share2, Check, Copy, Printer } from 'lucide-react';
+import { FileText, Users, BookOpen, Download, CheckCircle, TrendingUp, FileDown, Share2, Check, Copy, Printer, Info } from 'lucide-react';
 import { useExport, useShare } from '../hooks';
+import { formatMarkdownText } from '../utils/textFormatter';
 
 interface DashboardProps {
   data?: AnalysisResult;
@@ -31,8 +32,9 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ data, isLoading = fals
   if (isLoading || !data) {
     return (
       <div className="w-full max-w-6xl mx-auto mt-8">
-        {/* Tab Navigation */}
-        <div className="flex flex-wrap gap-2 border-b border-gray-200 dark:border-slate-700 mb-6">
+        {/* Tab Navigation - Sticky przy przewijaniu */}
+        <div className="sticky top-[73px] z-40 bg-slate-50 dark:bg-slate-900 pt-4 pb-2 -mt-4 -mx-4 px-4 mb-6 border-b border-gray-200 dark:border-slate-700">
+          <div className="flex flex-wrap gap-2">
           {[
             { id: 'SUMMARY', label: 'Podsumowanie', icon: <TrendingUp className="w-4 h-4" /> },
             { id: 'EXPERTS', label: 'Opinie Ekspertów', icon: <Users className="w-4 h-4" /> },
@@ -48,6 +50,7 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ data, isLoading = fals
               {tab.label}
             </button>
           ))}
+          </div>
         </div>
 
         {/* Content Area with Skeleton Loaders */}
@@ -118,9 +121,9 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ data, isLoading = fals
           <CheckCircle className="w-6 h-6" />
           Rekomendacja Końcowa
         </h2>
-        <p className="text-lg leading-relaxed text-gray-100 dark:text-slate-200">
-          {data.finalRecommendation}
-        </p>
+        <div className="text-lg leading-relaxed text-gray-100 dark:text-slate-200 whitespace-pre-line text-justify">
+          {formatMarkdownText(data.finalRecommendation)}
+        </div>
       </div>
 
       <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-gray-200 dark:border-slate-700 shadow-sm">
@@ -136,71 +139,149 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ data, isLoading = fals
     </div>
   ), [data, getRiskColor]);
 
-  const renderExperts = useCallback(() => (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
-      <AgentCard agent={data.agents.legislator} />
-      <AgentCard agent={data.agents.practitioner} />
-      <AgentCard agent={data.agents.auditor} />
-    </div>
-  ), [data.agents]);
-
-  const renderCitations = useCallback(() => (
-    <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden animate-fade-in">
-      <div className="p-6 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50">
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-gray-800 dark:text-slate-200 flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-          Weryfikacja Źródeł i Podstawa Prawna
-        </h2>
-            <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
-          System automatycznie weryfikuje cytowania w bazie aktów prawnych (ISAP, PKN).
-        </p>
+  const renderExperts = useCallback(() => {
+    // Tryb "Informacja" - jeden agent
+    if (data.mode === 'information' && 'legalExpert' in data.agents && data.agents.legalExpert) {
+      return (
+        <div className="max-w-4xl mx-auto animate-fade-in">
+          <AgentCard agent={data.agents.legalExpert} />
+        </div>
+      );
+    }
+    
+    // Tryb "Problem" - trzy agenty
+    if ('legislator' in data.agents && 'practitioner' in data.agents && 'auditor' in data.agents) {
+      const { legislator, practitioner, auditor } = data.agents;
+      if (legislator && practitioner && auditor) {
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
+            <AgentCard agent={legislator} />
+            <AgentCard agent={practitioner} />
+            <AgentCard agent={auditor} />
           </div>
-          <Tooltip 
-            content="Cytowania prawne są weryfikowane automatycznie. Wysoka wiarygodność oznacza potwierdzenie w oficjalnych źródłach prawnych. Niska wiarygodność może oznaczać nieaktualne lub niepotwierdzone informacje."
-            icon
-          />
+        );
+      }
+    }
+    
+    return null;
+  }, [data.agents, data.mode]);
+
+  const renderCitations = useCallback(() => {
+    // Najpierw deduplikuj cytowania - usuń duplikaty na podstawie source + chunkId lub znormalizowanego snippetu
+    const uniqueCitations: typeof data.citations = [];
+    const seenKeys = new Set<string>();
+    
+    for (const cite of data.citations) {
+      // Stwórz unikalny klucz: source + chunkId (jeśli istnieje) lub znormalizowany snippet
+      const citationKey = cite.chunkId 
+        ? `${cite.source?.toLowerCase() || ''}:${cite.chunkId}`
+        : `${cite.source?.toLowerCase() || ''}:${cite.snippet?.substring(0, 100).toLowerCase().trim().replace(/\s+/g, ' ') || ''}`;
+      
+      if (!seenKeys.has(citationKey)) {
+        seenKeys.add(citationKey);
+        uniqueCitations.push(cite);
+      }
+    }
+    
+    // Grupuj cytowania według źródła
+    const groupedCitations = uniqueCitations.reduce((acc, cite) => {
+      const source = cite.source || 'Nieznane źródło';
+      if (!acc[source]) {
+        acc[source] = {
+          source,
+          url: cite.url,
+          citations: [],
+          reliability: cite.reliability, // Użyj najwyższej wiarygodności z grupy
+        };
+      }
+      acc[source].citations.push(cite);
+      // Aktualizuj wiarygodność - użyj najwyższej z grupy
+      const reliabilityOrder: Record<'Wysokie' | 'Średnie' | 'Niskie', number> = { 'Wysokie': 3, 'Średnie': 2, 'Niskie': 1 };
+      const currentReliabilityValue = reliabilityOrder[cite.reliability] || 0;
+      const existingReliability = acc[source].reliability as 'Wysokie' | 'Średnie' | 'Niskie';
+      const existingReliabilityValue = reliabilityOrder[existingReliability] || 0;
+      if (currentReliabilityValue > existingReliabilityValue) {
+        acc[source].reliability = cite.reliability;
+      }
+      return acc;
+    }, {} as Record<string, { source: string; url?: string; citations: typeof data.citations; reliability: string }>);
+
+    const groupedArray = Object.values(groupedCitations);
+
+    return (
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden animate-fade-in">
+        <div className="p-6 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50">
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-gray-800 dark:text-slate-200 flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            Weryfikacja Źródeł i Podstawa Prawna
+          </h2>
+              <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
+            System automatycznie weryfikuje cytowania w bazie aktów prawnych (ISAP, PKN).
+          </p>
+            </div>
+            <Tooltip 
+              content="Cytowania prawne są weryfikowane automatycznie. Wysoka wiarygodność oznacza potwierdzenie w oficjalnych źródłach prawnych. Niska wiarygodność może oznaczać nieaktualne lub niepotwierdzone informacje."
+              icon
+            />
+          </div>
+        </div>
+        <div className="divide-y divide-gray-100 dark:divide-slate-700">
+          {groupedArray.map((group, groupIndex) => (
+            <div key={groupIndex} className="p-6 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+              {/* Nagłówek źródła - wyświetlany tylko raz dla całej grupy */}
+              <div className="flex items-start justify-between mb-4">
+                <h3 className="font-semibold text-gray-900 dark:text-slate-200">{group.source}</h3>
+                <Tooltip 
+                  content={
+                    group.reliability === 'Wysokie' 
+                      ? 'Źródło zostało zweryfikowane w oficjalnych bazach prawnych (ISAP, PKN)'
+                      : group.reliability === 'Średnie'
+                      ? 'Źródło wymaga dodatkowej weryfikacji lub może być częściowo nieaktualne'
+                      : 'Źródło nie zostało zweryfikowane lub może być nieaktualne'
+                  }
+                >
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium border cursor-help
+                    ${group.reliability === 'Wysokie' ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800' : 
+                      group.reliability === 'Średnie' ? 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800' : 
+                      'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800'}`}>
+                  Wiarygodność: {group.reliability}
+                </span>
+                </Tooltip>
+              </div>
+              
+              {/* Wszystkie cytowania z tego źródła */}
+              <div className="space-y-4">
+                {group.citations.map((cite, citeIndex) => (
+                  <div key={citeIndex} className="border-l-4 border-gray-300 dark:border-slate-600 pl-4">
+                    <p className="text-sm text-gray-600 dark:text-slate-300 bg-gray-50 dark:bg-slate-900/50 p-3 rounded-md italic font-serif">
+                      "{cite.snippet}"
+                    </p>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Link do źródła - wyświetlany tylko raz na końcu grupy */}
+              {group.url && (
+                <a 
+                  href={group.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-block mt-4 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline"
+                >
+                  Zobacz w źródle (ISAP) →
+                </a>
+              )}
+            </div>
+          ))}
+          {data.citations.length === 0 && (
+            <div className="p-8 text-center text-gray-500 dark:text-slate-400">Brak bezpośrednich cytowań prawnych dla tego zapytania.</div>
+          )}
         </div>
       </div>
-      <div className="divide-y divide-gray-100 dark:divide-slate-700">
-        {data.citations.map((cite, i) => (
-          <div key={i} className="p-6 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-            <div className="flex items-start justify-between mb-2">
-              <h3 className="font-semibold text-gray-900 dark:text-slate-200">{cite.source}</h3>
-              <Tooltip 
-                content={
-                  cite.reliability === 'Wysokie' 
-                    ? 'Źródło zostało zweryfikowane w oficjalnych bazach prawnych (ISAP, PKN)'
-                    : cite.reliability === 'Średnie'
-                    ? 'Źródło wymaga dodatkowej weryfikacji lub może być częściowo nieaktualne'
-                    : 'Źródło nie zostało zweryfikowane lub może być nieaktualne'
-                }
-              >
-                <span className={`px-2 py-0.5 rounded text-xs font-medium border cursor-help
-                  ${cite.reliability === 'Wysokie' ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800' : 
-                    cite.reliability === 'Średnie' ? 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800' : 
-                    'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800'}`}>
-                Wiarygodność: {cite.reliability}
-              </span>
-              </Tooltip>
-            </div>
-            <p className="text-sm text-gray-600 dark:text-slate-300 bg-gray-50 dark:bg-slate-900/50 p-3 rounded-md italic font-serif border-l-4 border-gray-300 dark:border-slate-600">
-              "{cite.snippet}"
-            </p>
-            {cite.url && (
-              <a href="#" className="inline-block mt-3 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline">
-                Zobacz w źródle (ISAP) →
-              </a>
-            )}
-          </div>
-        ))}
-        {data.citations.length === 0 && (
-          <div className="p-8 text-center text-gray-500 dark:text-slate-400">Brak bezpośrednich cytowań prawnych dla tego zapytania.</div>
-        )}
-      </div>
-    </div>
-  ), [data.citations]);
+    );
+  }, [data.citations]);
 
   const renderExport = useCallback(() => (
     <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 max-w-4xl mx-auto animate-fade-in my-4 min-h-[600px] flex flex-col">
@@ -291,7 +372,9 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ data, isLoading = fals
             {/* 1. Podsumowanie Zarządcze */}
             <div className="mb-8">
                 <h2 className="text-lg font-bold mb-3 uppercase text-gray-900 dark:text-slate-200 border-b dark:border-slate-700 pb-1">1. Podsumowanie Zarządcze</h2>
-                <p className="text-justify leading-relaxed">{data.finalRecommendation}</p>
+                <div className="text-justify leading-relaxed whitespace-pre-line">
+                  {formatMarkdownText(data.finalRecommendation)}
+                </div>
             </div>
 
             {/* 2. Ocena Ryzyka */}
@@ -325,74 +408,133 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ data, isLoading = fals
                 <p className="text-justify leading-relaxed">{data.summary}</p>
             </div>
 
-            {/* 4. Opinie Ekspertów */}
+            {/* 4. Opinie Ekspertów / Szczegóły */}
             <div className="mb-8">
-                <h2 className="text-lg font-bold mb-3 uppercase text-gray-900 dark:text-slate-200 border-b dark:border-slate-700 pb-1">4. Opinie Ekspertów</h2>
+                <h2 className="text-lg font-bold mb-3 uppercase text-gray-900 dark:text-slate-200 border-b dark:border-slate-700 pb-1">
+                    {data.mode === 'information' ? '4. Szczegóły' : '4. Opinie Ekspertów'}
+                </h2>
                 
-                <div className="mb-4">
-                    <h3 className="font-bold text-gray-800 dark:text-slate-200">4.1. Perspektywa Prawna ({data.agents.legislator.title})</h3>
-                    <p className="text-sm text-gray-600 dark:text-slate-400 mb-2 italic">Zgodność z przepisami prawa i normami.</p>
-                    <p className="text-justify">{data.agents.legislator.analysis}</p>
-                    <div className="mt-3">
-                        <p className="font-semibold text-sm mb-2">Kluczowe argumenty:</p>
-                        <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 dark:text-slate-300">
-                            {data.agents.legislator.keyPoints.map((point, idx) => (
-                                <li key={idx}>{point}</li>
-                            ))}
-                        </ul>
+                {data.mode === 'information' && 'legalExpert' in data.agents && data.agents.legalExpert ? (
+                    <div className="mb-4">
+                        <h3 className="font-bold text-gray-800 dark:text-slate-200">Analiza Prawna ({data.agents.legalExpert.title})</h3>
+                        <p className="text-sm text-gray-600 dark:text-slate-400 mb-2 italic">Szczegółowa analiza przepisów prawnych.</p>
+                        <div className="text-justify whitespace-pre-line leading-relaxed">
+                          {formatMarkdownText(data.agents.legalExpert.analysis)}
+                        </div>
+                        <div className="mt-3">
+                            <p className="font-semibold text-sm mb-2">Kluczowe przepisy:</p>
+                            <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 dark:text-slate-300">
+                                {data.agents.legalExpert.keyPoints.map((point, idx) => (
+                                    <li key={idx}>{point}</li>
+                                ))}
+                            </ul>
+                        </div>
                     </div>
-                </div>
+                ) : 'legislator' in data.agents && 'practitioner' in data.agents && 'auditor' in data.agents && data.agents.legislator && data.agents.practitioner && data.agents.auditor ? (
+                    <>
+                        <div className="mb-4">
+                            <h3 className="font-bold text-gray-800 dark:text-slate-200">4.1. Perspektywa Prawna ({data.agents.legislator.title})</h3>
+                            <p className="text-sm text-gray-600 dark:text-slate-400 mb-2 italic">Zgodność z przepisami prawa i normami.</p>
+                            <p className="text-justify">{data.agents.legislator.analysis}</p>
+                            <div className="mt-3">
+                                <p className="font-semibold text-sm mb-2">Kluczowe argumenty:</p>
+                                <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 dark:text-slate-300">
+                                    {data.agents.legislator.keyPoints.map((point, idx) => (
+                                        <li key={idx}>{point}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
 
-                <div className="mb-4">
-                    <h3 className="font-bold text-gray-800 dark:text-slate-200">4.2. Perspektywa Biznesowa ({data.agents.practitioner.title})</h3>
-                    <p className="text-sm text-gray-600 dark:text-slate-400 mb-2 italic">Optymalizacja kosztów i ciągłość działania.</p>
-                    <p className="text-justify">{data.agents.practitioner.analysis}</p>
-                    <div className="mt-3">
-                        <p className="font-semibold text-sm mb-2">Kluczowe argumenty:</p>
-                        <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 dark:text-slate-300">
-                            {data.agents.practitioner.keyPoints.map((point, idx) => (
-                                <li key={idx}>{point}</li>
-                            ))}
-                        </ul>
-                    </div>
-                </div>
+                        <div className="mb-4">
+                            <h3 className="font-bold text-gray-800 dark:text-slate-200">4.2. Perspektywa Biznesowa ({data.agents.practitioner.title})</h3>
+                            <p className="text-sm text-gray-600 dark:text-slate-400 mb-2 italic">Optymalizacja kosztów i ciągłość działania.</p>
+                            <p className="text-justify">{data.agents.practitioner.analysis}</p>
+                            <div className="mt-3">
+                                <p className="font-semibold text-sm mb-2">Kluczowe argumenty:</p>
+                                <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 dark:text-slate-300">
+                                    {data.agents.practitioner.keyPoints.map((point, idx) => (
+                                        <li key={idx}>{point}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
 
-                 <div className="mb-4">
-                    <h3 className="font-bold text-gray-800 dark:text-slate-200">4.3. Analiza Ryzyka ({data.agents.auditor.title})</h3>
-                    <p className="text-justify">{data.agents.auditor.analysis}</p>
-                    <div className="mt-3">
-                        <p className="font-semibold text-sm mb-2">Kluczowe argumenty:</p>
-                        <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 dark:text-slate-300">
-                            {data.agents.auditor.keyPoints.map((point, idx) => (
-                                <li key={idx}>{point}</li>
-                            ))}
-                        </ul>
-                    </div>
-                </div>
+                        <div className="mb-4">
+                            <h3 className="font-bold text-gray-800 dark:text-slate-200">4.3. Analiza Ryzyka ({data.agents.auditor.title})</h3>
+                            <p className="text-justify">{data.agents.auditor.analysis}</p>
+                            <div className="mt-3">
+                                <p className="font-semibold text-sm mb-2">Kluczowe argumenty:</p>
+                                <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 dark:text-slate-300">
+                                    {data.agents.auditor.keyPoints.map((point, idx) => (
+                                        <li key={idx}>{point}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+                    </>
+                ) : null}
             </div>
 
             {/* 5. Weryfikacja Źródeł i Podstawa Prawna */}
             <div className="mb-8">
                 <h2 className="text-lg font-bold mb-3 uppercase text-gray-900 dark:text-slate-200 border-b dark:border-slate-700 pb-1">5. Weryfikacja Źródeł i Podstawa Prawna</h2>
                 {data.citations.length > 0 ? (
-                    <div className="space-y-4">
-                        {data.citations.map((cite, index) => (
-                            <div key={index} className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-4">
-                                <div className="flex items-start justify-between mb-2">
-                                    <h3 className="font-semibold text-gray-900 dark:text-slate-200">Źródło {index + 1}: {cite.source}</h3>
-                                    <span className={`px-2 py-1 rounded text-xs font-medium
-                                        ${cite.reliability === 'Wysokie' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : 
-                                          cite.reliability === 'Średnie' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300' : 
-                                          'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'}`}>
-                                        Wiarygodność: {cite.reliability}
-                                    </span>
-                                </div>
-                                <p className="text-sm text-gray-600 dark:text-slate-300 bg-gray-50 dark:bg-slate-900/50 p-3 rounded-md italic font-serif border-l-4 border-gray-300 dark:border-slate-600 mt-2">
-                                    "{cite.snippet}"
-                                </p>
+                    (() => {
+                        // Grupuj cytowania według źródła (tak jak w głównym widoku)
+                        const groupedCitations = data.citations.reduce((acc, cite) => {
+                            const source = cite.source || 'Nieznane źródło';
+                            if (!acc[source]) {
+                                acc[source] = {
+                                    source,
+                                    url: cite.url,
+                                    citations: [],
+                                    reliability: cite.reliability,
+                                };
+                            }
+                            acc[source].citations.push(cite);
+                            const reliabilityOrder: Record<'Wysokie' | 'Średnie' | 'Niskie', number> = { 'Wysokie': 3, 'Średnie': 2, 'Niskie': 1 };
+                            const currentReliabilityValue = reliabilityOrder[cite.reliability] || 0;
+                            const existingReliability = acc[source].reliability as 'Wysokie' | 'Średnie' | 'Niskie';
+                            const existingReliabilityValue = reliabilityOrder[existingReliability] || 0;
+                            if (currentReliabilityValue > existingReliabilityValue) {
+                                acc[source].reliability = cite.reliability;
+                            }
+                            return acc;
+                        }, {} as Record<string, { source: string; url?: string; citations: typeof data.citations; reliability: string }>);
+
+                        const groupedArray = Object.values(groupedCitations);
+
+                        return (
+                            <div className="space-y-6">
+                                {groupedArray.map((group, groupIndex) => (
+                                    <div key={groupIndex} className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+                                        <div className="flex items-start justify-between mb-3">
+                                            <h3 className="font-semibold text-gray-900 dark:text-slate-200">{group.source}</h3>
+                                            <span className={`px-2 py-1 rounded text-xs font-medium
+                                                ${group.reliability === 'Wysokie' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : 
+                                                  group.reliability === 'Średnie' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300' : 
+                                                  'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'}`}>
+                                                Wiarygodność: {group.reliability}
+                                            </span>
+                                        </div>
+                                        <div className="space-y-3">
+                                            {group.citations.map((cite, citeIndex) => (
+                                                <p key={citeIndex} className="text-sm text-gray-600 dark:text-slate-300 bg-gray-50 dark:bg-slate-900/50 p-3 rounded-md italic font-serif border-l-4 border-gray-300 dark:border-slate-600">
+                                                    "{cite.snippet}"
+                                                </p>
+                                            ))}
+                                        </div>
+                                        {group.url && (
+                                            <p className="mt-3 text-xs text-gray-500 dark:text-slate-400 italic">
+                                                Źródło: <a href={group.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 underline">{group.url}</a>
+                                            </p>
+                                        )}
+                                    </div>
+                                ))}
                             </div>
-                        ))}
-                    </div>
+                        );
+                    })()
                 ) : (
                     <p className="text-sm text-gray-500 dark:text-slate-400 italic">Brak bezpośrednich cytowań prawnych dla tego zapytania.</p>
                 )}
@@ -428,15 +570,20 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ data, isLoading = fals
 
   const tabs = useMemo(() => [
     { id: 'SUMMARY', label: 'Podsumowanie', icon: <TrendingUp className="w-4 h-4" /> },
-    { id: 'EXPERTS', label: 'Opinie Ekspertów', icon: <Users className="w-4 h-4" /> },
+    { 
+      id: 'EXPERTS', 
+      label: data?.mode === 'information' ? 'Szczegóły' : 'Opinie Ekspertów', 
+      icon: data?.mode === 'information' ? <Info className="w-4 h-4" /> : <Users className="w-4 h-4" />
+    },
     { id: 'CITATIONS', label: 'Weryfikacja Prawna', icon: <BookOpen className="w-4 h-4" /> },
     { id: 'EXPORT', label: 'Eksport Raportu', icon: <FileText className="w-4 h-4" /> },
-  ], []);
+  ], [data?.mode]);
 
   return (
     <div className="w-full max-w-6xl mx-auto mt-8">
-      {/* Tab Navigation */}
-      <div className="flex flex-wrap gap-2 border-b border-gray-200 dark:border-slate-700 mb-6 no-print">
+      {/* Tab Navigation - Sticky przy przewijaniu */}
+      <div className="sticky top-[73px] z-40 bg-slate-50 dark:bg-slate-900 pt-4 pb-2 -mt-4 -mx-4 px-4 mb-6 border-b border-gray-200 dark:border-slate-700 no-print">
+        <div className="flex flex-wrap gap-2">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -454,6 +601,7 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ data, isLoading = fals
             {tab.label}
           </button>
         ))}
+        </div>
       </div>
 
       {/* Content Area with smooth transitions */}
