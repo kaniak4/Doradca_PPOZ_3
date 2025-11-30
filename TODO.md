@@ -2,7 +2,7 @@
 
 > Lista zadań do wykonania w najbliższych etapach produkcji i usprawnień
 
-**Ostatnia aktualizacja:** 2024-11-29
+**Ostatnia aktualizacja:** 2024-12-30
 
 ---
 
@@ -95,6 +95,42 @@
   - Rozwiązanie: Przejrzeć i dodać useMemo, useCallback gdzie potrzebne
   - Pliki: `components/Dashboard.tsx`, `components/AgentCard.tsx`
   - **Priorytet:** Niski - już częściowo zrobione
+
+### Ustawienia (Sekcja w Sidebar)
+- [ ] **Zarządzanie historią**
+  - Problem: Limit historii jest hardcoded (50), brak kontroli użytkownika
+  - Rozwiązanie: Dodać ustawienia w sekcji Settings:
+    - Maksymalna liczba zapisanych analiz (10-200, domyślnie 50)
+    - Włącz/wyłącz automatyczne zapisywanie do historii
+    - Automatyczne czyszczenie po X dniach (opcjonalne, 7/30/90 dni)
+  - Pliki: `components/Sidebar.tsx`, `hooks/useHistory.ts`, `hooks/useSettings.ts` (nowy)
+  - Storage: localStorage dla ustawień
+  - **Priorytet:** Wysoki - podstawowa funkcjonalność ustawień
+
+- [ ] **Zarządzanie motywem**
+  - Problem: Przycisk motywu jest w headerze, brak opcji "auto"
+  - Rozwiązanie: Przenieść do sekcji Ustawienia z opcjami:
+    - Jasny / Ciemny / Auto (wykrywanie preferencji systemowych)
+  - Pliki: `components/Sidebar.tsx`, `hooks/useTheme.ts`, `App.tsx` (usunąć przycisk z headera)
+  - **Priorytet:** Średni - poprawa UX
+
+- [ ] **Tryb prywatny**
+  - Problem: Brak możliwości pracy bez zapisywania historii
+  - Rozwiązanie: Dodać opcję "Tryb prywatny" w ustawieniach:
+    - Włączony: analizy nie są zapisywane do historii
+    - Wyłączony: normalne działanie (zapis do historii)
+  - Pliki: `hooks/useSettings.ts`, `hooks/useHistory.ts`, `App.tsx`
+  - **Priorytet:** Średni - ważne dla prywatności
+
+- [ ] **Informacje o aplikacji**
+  - Problem: Brak informacji o wersji i statusie
+  - Rozwiązanie: Dodać sekcję informacji w ustawieniach:
+    - Wersja aplikacji (z package.json)
+    - Status połączenia z backendem (już jest w headerze, można przenieść)
+    - Reset ustawień do domyślnych
+    - Link do dokumentacji/pomocy (opcjonalnie)
+  - Pliki: `components/Sidebar.tsx`, `components/SettingsPanel.tsx` (nowy lub w Sidebar)
+  - **Priorytet:** Niski - nice to have
 
 ### Refaktoryzacja
 - [x] **Włączyć TypeScript strict mode** ✅
