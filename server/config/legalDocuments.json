@@ -1,0 +1,94 @@
+{
+  "documents": [
+    {
+      "path": "server/data/legal_documents/ustawy/Ustawa_Kodeks_cywilny.pdf",
+      "metadata": {
+        "title": "KUstawa z dnia 23 kwietnia 1964 r. odeks Cywilny",
+        "type": "ustawa",
+        "isapUrl": "https://isap.sejm.gov.pl/isap.nsf/download.xsp/WDU19640160093/U/D19640093Lj.pdf",
+        "date": "1964-04-23"
+      }
+    },
+    {
+      "path": "server/data/legal_documents/ustawy/Ustawa_Kodeks_pracy.pdf",
+      "metadata": {
+        "title": "Ustawa z dnia 26 czerwca 1974 r. Kodeks Pracy",
+        "type": "ustawa",
+        "isapUrl": "https://isap.sejm.gov.pl/isap.nsf/download.xsp/WDU19740240141/U/D19740141Lj.pdf",
+        "date": "1974-06-26"
+      }
+    },
+    {
+      "path": "server/data/legal_documents/ustawy/Ustawa_o_ochronie_przeciwpozarowej.pdf",
+      "metadata": {
+        "title": "Ustawa z dnia 24 sierpnia 1991 r. o ochronie przeciwpozarowej",
+        "type": "ustawa",
+        "isapUrl": "https://isap.sejm.gov.pl/isap.nsf/download.xsp/WDU19910810351/U/D19910351Lj.pdf",
+        "date": "1991-08-24"
+      }
+    },
+    {
+      "path": "server/data/legal_documents/ustawy/Ustawa_o_odpadach.pdf",
+      "metadata": {
+        "title": "Ustawa z dnia 14 grudnia 2012 r.o odpadach",
+        "type": "ustawa",
+        "isapUrl": "https://isap.sejm.gov.pl/isap.nsf/download.xsp/WDU20130000021/U/D20130021Lj.pdf",
+        "date": "2012-12-14"
+      }
+    },
+    {
+      "path": "server/data/legal_documents/ustawy/Ustawa_prawo_budowlane.pdf",
+      "metadata": {
+        "title": "Ustawa z dnia 7 lipca 1994 r. Prawo Budowlane",
+        "type": "ustawa",
+        "isapUrl": "https://isap.sejm.gov.pl/isap.nsf/download.xsp/WDU20250000418/U/D20250418Lj.pdf",
+        "date": "1994-07-07"
+      }
+    },
+    {
+      "path": "server/data/legal_documents/ustawy/Ustawa_warunki_dostepu_do_wykonywania_niektorych_zawodów.pdf",
+      "metadata": {
+        "title": "Ustawa z dnia 5 sierpnia 2015 r. o zmianie ustaw regulujących warunki dostępu do wykonywania niektórych zawodów",
+        "type": "ustawa",
+        "isapUrl": "https://isap.sejm.gov.pl/isap.nsf/download.xsp/WDU20150001505/O/D20151505.pdf",
+        "date": "2015-08-05"
+      }
+    },
+    {
+      "path": "server/data/legal_documents/rozporzadzenia/Rozporzadzenie_ochrona_przeciwpozarowa_budynkow.pdf",
+      "metadata": {
+        "title": "Rozporządzenie Ministra Spraw Wewnętrznych i Administracji z dnia 7 czerwca 2010 r. w sprawie ochrony przeciwpożarowej budynków, innych obiektów budowlanych i terenów",
+        "type": "rozporzadzenie",
+        "isapUrl": "https://isap.sejm.gov.pl/isap.nsf/download.xsp/WDU20230000822/O/D20230822.pdf",
+        "date": "2010-06-07"
+      }
+    },
+    {
+      "path": "server/data/legal_documents/rozporzadzenia/Rozporzadzenie_zakres_i_forma_projektu_budowlanego.pdf",
+      "metadata": {
+        "title": "Rozporządzenie Ministra Rozwoju z dnia 11 września 2020 r. w sprawie szczegółowego zakresu i formy projektu budowlanego",
+        "type": "rozporzadzenie",
+        "isapUrl": "https://isap.sejm.gov.pl/isap.nsf/download.xsp/WDU20220001679/O/D20221679.pdf",
+        "date": "2020-09-11"
+      }
+    },
+    {
+      "path": "server/data/legal_documents/rozporzadzenia/Rozporzadzenie_zaopatrzenia_w_wode_oraz_drog_pozarowych.pdf",
+      "metadata": {
+        "title": "Rozporządzenie Ministra Spraw Wewnętrznych i Administracji z dnia 24 lipca 2009 r. w sprawie przeciwpożarowego zaopatrzenia w wodę oraz dróg pożarowych",
+        "type": "rozporzadzenie",
+        "isapUrl": "https://isap.sejm.gov.pl/isap.nsf/download.xsp/WDU20091241030/O/D20091030.pdf",
+        "date": "2009-08-06"
+      }
+    },
+    {
+      "path": "server/data/legal_documents/rozporzadzenia/Rozporzedzenie_warunki_techniczne.pdf",
+      "metadata": {
+        "title": "Rozporządzenie Ministra Infrastruktury z dnia 12 kwietnia 2002 r. w sprawie warunków technicznych, jakim powinny odpowiadać budynki i ich usytuowanie.",
+        "type": "rozporzadzenie",
+        "isapUrl": "https://isap.sejm.gov.pl/isap.nsf/download.xsp/WDU20220001225/O/D20221225.pdf",
+        "date": "2002-04-12"
+      }
+    }
+  ]
+}
