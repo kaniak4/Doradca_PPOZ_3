@@ -14,6 +14,19 @@
 
 </div>
 
+# 🔥 Doradca PPOŻ AI
+
+> Inteligentny system wsparcia decyzji w zakresie ochrony przeciwpożarowej i bezpieczeństwa pracy, wykorzystujący sztuczną inteligencję do analizy problemów PPOŻ/BHP z perspektywy trzech wirtualnych ekspertów.
+
+<div align="center">
+
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-19.2-blue.svg)](https://react.dev/)
+[![Node.js](https://img.shields.io/badge/Node.js-Express-green.svg)](https://nodejs.org/)
+[![License](https://img.shields.io/badge/License-Private-red.svg)](LICENSE)
+
+</div>
+
 ## 📋 Spis treści
 
 - [O projekcie](#-o-projekcie)
