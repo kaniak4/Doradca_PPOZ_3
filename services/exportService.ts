@@ -333,23 +333,14 @@ export const exportToPdf = async (data: AnalysisResult) => {
   });
 
   try {
-    console.log('Rozpoczynam eksport do PDF...');
-    
     // Używamy wbudowanego fontu Helvetica, który nie wymaga rejestracji
     // Helvetica dobrze obsługuje polskie znaki diakrytyczne
     await registerPolishFont(); // Funkcja jest teraz no-op, ale pozostaje dla kompatybilności
     
-    console.log('Tworzę dokument PDF...');
     const doc = React.createElement(PDFReport, { data, currentDate });
-    
-    console.log('Generuję blob PDF...');
     const blob = await pdf(doc).toBlob();
-    
-    console.log('Zapisuję plik PDF...');
     const fileName = `Raport_PPOZ_${new Date().toISOString().split('T')[0]}.pdf`;
     saveAs(blob, fileName);
-    
-    console.log('PDF został pomyślnie wygenerowany');
   } catch (error) {
     console.error('Błąd podczas eksportu do PDF:', error);
     const errorMessage = error instanceof Error 

@@ -144,30 +144,30 @@ export const PDFReport: React.FC<PDFReportProps> = ({ data, currentDate }: PDFRe
       <View style={styles.table}>
         <View style={styles.tableRow}>
           <View style={styles.tableCell}>
-            <Text style={{ fontWeight: 'bold' } as any}>Ryzyko Prawne</Text>
+            <Text style={styles.bold}>Ryzyko Prawne</Text>
           </View>
           <View style={styles.tableCellLast}>
-            <Text style={{ fontWeight: 'bold', color: getRiskColor(data.riskAssessment.legalRisk) } as any}>
+            <Text style={[styles.bold, { color: getRiskColor(data.riskAssessment.legalRisk) }]}>
               {getRiskText(data.riskAssessment.legalRisk)}
             </Text>
           </View>
         </View>
         <View style={styles.tableRow}>
           <View style={styles.tableCell}>
-            <Text style={{ fontWeight: 'bold' } as any}>Ryzyko Finansowe</Text>
+            <Text style={styles.bold}>Ryzyko Finansowe</Text>
           </View>
           <View style={styles.tableCellLast}>
-            <Text style={{ fontWeight: 'bold', color: getRiskColor(data.riskAssessment.financialRisk) } as any}>
+            <Text style={[styles.bold, { color: getRiskColor(data.riskAssessment.financialRisk) }]}>
               {getRiskText(data.riskAssessment.financialRisk)}
             </Text>
           </View>
         </View>
         <View style={styles.tableRow}>
           <View style={styles.tableCell}>
-            <Text style={{ fontWeight: 'bold' } as any}>Ryzyko Bezpieczeństwa</Text>
+            <Text style={styles.bold}>Ryzyko Bezpieczeństwa</Text>
           </View>
           <View style={styles.tableCellLast}>
-            <Text style={{ fontWeight: 'bold', color: getRiskColor(data.riskAssessment.safetyRisk) } as any}>
+            <Text style={[styles.bold, { color: getRiskColor(data.riskAssessment.safetyRisk) }]}>
               {getRiskText(data.riskAssessment.safetyRisk)}
             </Text>
           </View>
@@ -206,11 +206,11 @@ export const PDFReport: React.FC<PDFReportProps> = ({ data, currentDate }: PDFRe
       {data.citations.length > 0 ? (
         data.citations.map((cite: { source: string; reliability: string; snippet: string; url?: string }, index: number) => (
           <View key={index} style={{ marginBottom: 15 }}>
-            <Text style={{ fontWeight: 'bold', marginBottom: 5 } as any}>
+            <Text style={[styles.bold, { marginBottom: 5 }]}>
               Źródło {index + 1}: {cite.source}
             </Text>
-            <Text style={{ marginBottom: 5 } as any}>Wiarygodność: {cite.reliability}</Text>
-            <Text style={{ fontStyle: 'italic', marginBottom: 10 } as any}>"{cite.snippet}"</Text>
+            <Text style={{ marginBottom: 5 }}>Wiarygodność: {cite.reliability}</Text>
+            <Text style={[styles.italic, { marginBottom: 10 }]}>"{cite.snippet}"</Text>
           </View>
         ))
       ) : (
@@ -219,7 +219,7 @@ export const PDFReport: React.FC<PDFReportProps> = ({ data, currentDate }: PDFRe
 
       <View style={styles.footer}>
         <Text>─────────────────────────────────────────────────────────────</Text>
-        <Text style={{ marginTop: 10 } as any}>
+        <Text style={{ marginTop: 10 }}>
           Dokument wygenerowany automatycznie przez system Doradca PPOŻ AI. Wymaga weryfikacji przez uprawnionego rzeczoznawcę.
         </Text>
       </View>
