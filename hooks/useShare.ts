@@ -13,8 +13,13 @@ interface UseShareReturn {
 
 /**
  * Hook do zarządzania udostępnianiem analiz
+ * @param onShowToast - Opcjonalna funkcja do wyświetlania toast sukcesu
+ * @param onShowError - Opcjonalna funkcja do wyświetlania toast błędu
  */
-export const useShare = (): UseShareReturn => {
+export const useShare = (
+  onShowToast?: (message: string) => void,
+  onShowError?: (message: string) => void
+): UseShareReturn => {
   const [isSharing, setIsSharing] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -35,12 +40,13 @@ export const useShare = (): UseShareReturn => {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Wystąpił błąd podczas tworzenia udostępnienia.';
       setShareError(errorMessage);
+      onShowError?.(errorMessage);
       console.error('Share creation error:', error);
       return null;
     } finally {
       setIsSharing(false);
     }
-  }, []);
+  }, [onShowError]);
 
   /**
    * Kopiuje link udostępnienia do schowka
@@ -49,14 +55,18 @@ export const useShare = (): UseShareReturn => {
     try {
       const success = await copyToClipboard(url);
       if (success) {
-        // Opcjonalnie: pokaż toast notification
+        onShowToast?.('Link został skopiowany do schowka');
+      } else {
+        onShowError?.('Nie udało się skopiować linku do schowka');
       }
       return success;
     } catch (error) {
+      const errorMessage = 'Nie udało się skopiować linku do schowka';
+      onShowError?.(errorMessage);
       console.error('Copy to clipboard error:', error);
       return false;
     }
-  }, []);
+  }, [onShowToast, onShowError]);
 
   /**
    * Resetuje stan udostępnienia

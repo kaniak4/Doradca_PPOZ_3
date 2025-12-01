@@ -19,8 +19,16 @@ export const useHistory = () => {
       if (stored) {
         const parsed = JSON.parse(stored);
         // Waliduj strukturę - usuń nieprawidłowe wpisy
-        const validEntries = parsed.filter((entry: any) => 
-          entry && entry.id && entry.query && entry.timestamp && entry.fullResult
+        const validEntries = parsed.filter((entry: unknown): entry is HistoryEntry => 
+          typeof entry === 'object' &&
+          entry !== null &&
+          'id' in entry &&
+          'query' in entry &&
+          'timestamp' in entry &&
+          'fullResult' in entry &&
+          typeof (entry as HistoryEntry).id === 'string' &&
+          typeof (entry as HistoryEntry).query === 'string' &&
+          typeof (entry as HistoryEntry).timestamp === 'number'
         );
         setHistory(validEntries);
       }
@@ -143,6 +151,30 @@ export const useHistory = () => {
     );
   }, [history]);
 
+  /**
+   * Usuń z historii zapytania wykryte jako bełkot lub za krótkie
+   * Użyteczne do czyszczenia historii z niepotrzebnych wpisów
+   */
+  const removeGibberishEntries = useCallback(() => {
+    const cleaned = history.filter(entry => {
+      // Usuń tylko zapytania wykryte jako bełkot
+      const isGibberish = 
+        entry.summary.toLowerCase().includes('bełkot') ||
+        entry.summary.toLowerCase().includes('losowy ciąg') ||
+        entry.summary.toLowerCase().includes('nie jest sensownym pytaniem') ||
+        (entry.fullResult.agents.legislator?.keyPoints?.some(kp => 
+          kp.toLowerCase().includes('bełkot') || 
+          kp.toLowerCase().includes('nie można analizować')
+        )) ||
+        (entry.fullResult.agents.legislator?.recommendationScore === 0 && entry.citationsCount === 0);
+      
+      // Zachowaj tylko sensowne zapytania (nie bełkot)
+      return !isGibberish;
+    });
+    
+    saveHistory(cleaned);
+  }, [history, saveHistory]);
+
   return {
     history,
     isLoading,
@@ -152,5 +184,6 @@ export const useHistory = () => {
     getEntry,
     searchHistory,
     filterByRisk,
+    removeGibberishEntries,
   };
 };

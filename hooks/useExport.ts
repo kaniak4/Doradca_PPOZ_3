@@ -11,8 +11,13 @@ interface UseExportReturn {
 /**
  * Hook do zarządzania eksportem raportów
  * Separuje logikę eksportu od komponentów UI
+ * @param onShowToast - Opcjonalna funkcja do wyświetlania toast sukcesu
+ * @param onShowError - Opcjonalna funkcja do wyświetlania toast błędu
  */
-export const useExport = (): UseExportReturn => {
+export const useExport = (
+  onShowToast?: (message: string) => void,
+  onShowError?: (message: string) => void
+): UseExportReturn => {
   const [isExporting, setIsExporting] = useState(false);
 
   /**
@@ -22,17 +27,19 @@ export const useExport = (): UseExportReturn => {
     setIsExporting(true);
     try {
       await exportToDocx(data);
+      onShowToast?.('Raport DOCX został wyeksportowany pomyślnie');
     } catch (error) {
       const errorMessage = error instanceof Error 
         ? error.message 
         : 'Nieznany błąd';
-      alert(`Błąd podczas eksportu DOCX: ${errorMessage}`);
+      const fullMessage = `Błąd podczas eksportu DOCX: ${errorMessage}`;
+      onShowError?.(fullMessage);
       console.error('Export DOCX error:', error);
       throw error;
     } finally {
       setIsExporting(false);
     }
-  }, []);
+  }, [onShowToast, onShowError]);
 
   /**
    * Eksportuje raport do formatu PDF
@@ -41,17 +48,19 @@ export const useExport = (): UseExportReturn => {
     setIsExporting(true);
     try {
       await exportToPdf(data);
+      onShowToast?.('Raport PDF został wyeksportowany pomyślnie');
     } catch (error) {
       const errorMessage = error instanceof Error 
         ? error.message 
         : 'Nieznany błąd';
-      alert(`Błąd podczas eksportu PDF: ${errorMessage}`);
+      const fullMessage = `Błąd podczas eksportu PDF: ${errorMessage}`;
+      onShowError?.(fullMessage);
       console.error('Export PDF error:', error);
       throw error;
     } finally {
       setIsExporting(false);
     }
-  }, []);
+  }, [onShowToast, onShowError]);
 
   return {
     isExporting,
