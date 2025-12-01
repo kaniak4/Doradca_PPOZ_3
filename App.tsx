@@ -2,7 +2,8 @@ import React, { lazy, Suspense, useEffect, useState, useRef } from 'react';
 import ErrorBoundary from './components/ErrorBoundary';
 import Tooltip from './components/Tooltip';
 import Sidebar from './components/Sidebar';
-import { useAnalysis, useTheme, useHistory } from './hooks';
+import { ToastContainer } from './components/Toast';
+import { useAnalysis, useTheme, useHistory, useToast } from './hooks';
 import { ErrorType } from './services/geminiService';
 import { getSharedAnalysis } from './services/shareService';
 import { Flame, Search, X, AlertCircle, RefreshCw, Wifi, WifiOff, Moon, Sun, History, HelpCircle } from 'lucide-react';
@@ -13,6 +14,7 @@ const Dashboard = lazy(() => import('./components/Dashboard'));
 
 const App: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
+  const { toasts, showSuccess, showError, removeToast } = useToast();
   const {
     query,
     setQuery,
@@ -32,7 +34,16 @@ const App: React.FC = () => {
     setResult: setAnalysisResult,
   } = useAnalysis();
   
-  const { addEntry, history } = useHistory();
+  const { addEntry, history, removeGibberishEntries } = useHistory();
+
+  // Automatycznie wyczyść bezużyteczne wpisy z historii przy pierwszym załadowaniu
+  useEffect(() => {
+    const hasCleanedBefore = sessionStorage.getItem('history_cleaned_v2');
+    if (!hasCleanedBefore && history.length > 0) {
+      removeGibberishEntries();
+      sessionStorage.setItem('history_cleaned_v2', 'true');
+    }
+  }, [history.length, removeGibberishEntries]);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>('problem');
@@ -83,8 +94,28 @@ const App: React.FC = () => {
       return;
     }
 
+    // NIE ZAPISUJ do historii tylko zapytań wykrytych jako bełkot
+    const trimmedQuery = query.trim();
+    
+    // Nie zapisuj zapytań wykrytych jako bełkot (losowe ciągi znaków)
+    const isGibberish = 
+      result.summary.toLowerCase().includes('bełkot') ||
+      result.summary.toLowerCase().includes('losowy ciąg') ||
+      result.summary.toLowerCase().includes('nie jest sensownym pytaniem') ||
+      (result.agents.legislator?.keyPoints?.some(kp => 
+        kp.toLowerCase().includes('bełkot') || 
+        kp.toLowerCase().includes('nie można analizować')
+      )) ||
+      (result.agents.legislator?.recommendationScore === 0 && result.citations.length === 0);
+    
+    if (isGibberish) {
+      // Nie zapisuj zapytań wykrytych jako bełkot
+      return;
+    }
+    
+
     // Stwórz unikalny klucz dla tej analizy
-    const analysisKey = `${query.trim()}|${result.summary}`;
+    const analysisKey = `${trimmedQuery}|${result.summary}`;
     
     // Sprawdź źródło analizy
     const source = analysisSourceRef.current;
@@ -96,7 +127,7 @@ const App: React.FC = () => {
       // Znajdź ID w historii jeśli to analiza z historii
       if (source === 'history') {
         const existingEntry = history.find(h => 
-          h.query.trim() === query.trim() && 
+          h.query.trim() === trimmedQuery && 
           h.summary === result.summary
         );
         if (existingEntry) {
@@ -113,7 +144,7 @@ const App: React.FC = () => {
 
     // Sprawdź czy analiza już istnieje w historii (po query + summary)
     const existingEntry = history.find(h => 
-      h.query.trim() === query.trim() && 
+      h.query.trim() === trimmedQuery && 
       h.summary === result.summary
     );
 
@@ -133,7 +164,7 @@ const App: React.FC = () => {
     }
     
     analysisSourceRef.current = null; // Reset flagi
-  }, [result, query, isLoading, addEntry]);
+  }, [result, query, isLoading, addEntry, history]);
 
   // Znajdź ID nowo zapisanej analizy po aktualizacji historii
   useEffect(() => {
@@ -388,7 +419,7 @@ const App: React.FC = () => {
                                   {query.length}/2000
                               </span>
                               <Tooltip 
-                                  content="Opisz problem PPOŻ/BHP jak najszczegółowiej. Minimum 10 znaków, maksimum 2000 znaków."
+                                  content="Opisz problemjak najszczegółowiej. Minimum 10 znaków, maksimum 2000 znaków."
                                   icon
                               />
                           </div>
@@ -521,7 +552,7 @@ const App: React.FC = () => {
                 </div>
               </div>
             }>
-              {result && <Dashboard data={result} isLoading={false} />}
+              {result && <Dashboard data={result} isLoading={false} onShowToast={showSuccess} onShowError={showError} />}
               {isLoading && !result && <Dashboard isLoading={true} />}
             </Suspense>
           </ErrorBoundary>
@@ -581,6 +612,9 @@ const App: React.FC = () => {
           onSelectAnalysis={handleSelectFromHistory}
           currentAnalysisId={currentAnalysisId}
         />
+
+        {/* Toast Notifications */}
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
       </div>
     </ErrorBoundary>
   );

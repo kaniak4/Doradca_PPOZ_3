@@ -8,25 +8,27 @@ import {
   CitationsSkeleton, 
   ExportSkeleton 
 } from './SkeletonLoaders';
-import { FileText, Users, BookOpen, Download, CheckCircle, TrendingUp, FileDown, Share2, Check, Copy, Printer, Info } from 'lucide-react';
+import { FileText, Users, BookOpen, Download, CheckCircle, TrendingUp, FileDown, Share2, Check, Copy, Printer, Info, CheckCircle2, AlertCircle, XCircle } from 'lucide-react';
 import { useExport, useShare } from '../hooks';
 import { formatMarkdownText } from '../utils/textFormatter';
 
 interface DashboardProps {
   data?: AnalysisResult;
   isLoading?: boolean;
+  onShowToast?: (message: string) => void;
+  onShowError?: (message: string) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = React.memo(({ data, isLoading = false }) => {
+const Dashboard: React.FC<DashboardProps> = React.memo(({ data, isLoading = false, onShowToast, onShowError }) => {
   const [activeTab, setActiveTab] = useState<TabView>('SUMMARY');
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [displayTab, setDisplayTab] = useState<TabView>('SUMMARY');
   
   // Używamy hooka do zarządzania eksportem
-  const { isExporting, exportToDocx, exportToPdf } = useExport();
+  const { isExporting, exportToDocx, exportToPdf } = useExport(onShowToast, onShowError);
   
   // Hook do zarządzania udostępnianiem
-  const { isSharing, shareUrl, shareError, createShareLink, copyShareLink } = useShare();
+  const { isSharing, shareUrl, shareError, createShareLink, copyShareLink } = useShare(onShowToast, onShowError);
   const [linkCopied, setLinkCopied] = useState(false);
 
   if (isLoading || !data) {
@@ -183,30 +185,92 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ data, isLoading = fals
       }
     }
     
-    // Grupuj cytowania według źródła
-    const groupedCitations = uniqueCitations.reduce((acc, cite) => {
-      const source = cite.source || 'Nieznane źródło';
-      if (!acc[source]) {
-        acc[source] = {
-          source,
+    // Funkcja wyciągająca tytuł aktu prawnego (bez paragrafu/rozdziału)
+    const extractBaseTitle = (source: string): string => {
+      if (!source) return 'Nieznane źródło';
+      // Usuń paragrafy/artykuły i rozdziały z końca
+      let title = source.trim();
+      // Usuń ", § 242 (Rozdział 4)" lub podobne wzorce z końca
+      title = title.replace(/,\s*[§§]\s*\d+\s*\(Rozdział\s+\d+\)\s*$/i, '');
+      title = title.replace(/,\s*Art\.\s*\d+\s*\(Rozdział\s+\d+\)\s*$/i, '');
+      title = title.replace(/,\s*[§§]\s*\d+\s*$/i, '');
+      title = title.replace(/,\s*Art\.\s*\d+\s*$/i, '');
+      title = title.replace(/\s*\(Rozdział\s+\d+\)\s*$/i, '');
+      return title.trim();
+    };
+
+    // Funkcja wyciągająca rozdział z source
+    const extractChapter = (source: string): string | null => {
+      if (!source) return null;
+      const match = source.match(/\(Rozdział\s+(\d+)\)/i);
+      return match ? `Rozdział ${match[1]}` : null;
+    };
+
+    // Grupuj cytowania według tytułu aktu prawnego (bez paragrafu/rozdziału)
+    const groupedByTitle = uniqueCitations.reduce((acc, cite) => {
+      const baseTitle = extractBaseTitle(cite.source || 'Nieznane źródło');
+      
+      if (!acc[baseTitle]) {
+        acc[baseTitle] = {
+          title: baseTitle,
           url: cite.url,
           citations: [],
-          reliability: cite.reliability, // Użyj najwyższej wiarygodności z grupy
+          reliability: cite.reliability,
+          chapters: new Map<string, typeof uniqueCitations>(), // Map rozdziałów
         };
       }
-      acc[source].citations.push(cite);
+      
+      acc[baseTitle].citations.push(cite);
+      
       // Aktualizuj wiarygodność - użyj najwyższej z grupy
       const reliabilityOrder: Record<'Wysokie' | 'Średnie' | 'Niskie', number> = { 'Wysokie': 3, 'Średnie': 2, 'Niskie': 1 };
       const currentReliabilityValue = reliabilityOrder[cite.reliability] || 0;
-      const existingReliability = acc[source].reliability as 'Wysokie' | 'Średnie' | 'Niskie';
+      const existingReliability = acc[baseTitle].reliability as 'Wysokie' | 'Średnie' | 'Niskie';
       const existingReliabilityValue = reliabilityOrder[existingReliability] || 0;
       if (currentReliabilityValue > existingReliabilityValue) {
-        acc[source].reliability = cite.reliability;
+        acc[baseTitle].reliability = cite.reliability;
       }
+      
+      // Zachowaj URL jeśli obecny
+      if (cite.url && !acc[baseTitle].url) {
+        acc[baseTitle].url = cite.url;
+      }
+      
       return acc;
-    }, {} as Record<string, { source: string; url?: string; citations: typeof data.citations; reliability: string }>);
+    }, {} as Record<string, { 
+      title: string; 
+      url?: string; 
+      citations: typeof uniqueCitations; 
+      reliability: string;
+      chapters: Map<string, typeof uniqueCitations>;
+    }>);
 
-    const groupedArray = Object.values(groupedCitations);
+    // Teraz dla każdego tytułu, zgrupuj cytowania według rozdziału i paragrafu
+    const groupedArray = Object.values(groupedByTitle).map(group => {
+      // Grupuj cytowania według rozdziału
+      const byChapter = new Map<string, Map<string, typeof uniqueCitations>>();
+      
+      for (const cite of group.citations) {
+        const chapter = extractChapter(cite.source || '') || 'Bez rozdziału';
+        const articleNumber = cite.articleNumber || 'Bez numeru';
+        
+        if (!byChapter.has(chapter)) {
+          byChapter.set(chapter, new Map());
+        }
+        
+        const chapterMap = byChapter.get(chapter)!;
+        if (!chapterMap.has(articleNumber)) {
+          chapterMap.set(articleNumber, []);
+        }
+        
+        chapterMap.get(articleNumber)!.push(cite);
+      }
+      
+      return {
+        ...group,
+        chapters: byChapter,
+      };
+    });
 
     return (
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden animate-fade-in">
@@ -228,53 +292,101 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ data, isLoading = fals
           </div>
         </div>
         <div className="divide-y divide-gray-100 dark:divide-slate-700">
-          {groupedArray.map((group, groupIndex) => (
-            <div key={groupIndex} className="p-6 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-              {/* Nagłówek źródła - wyświetlany tylko raz dla całej grupy */}
-              <div className="flex items-start justify-between mb-4">
-                <h3 className="font-semibold text-gray-900 dark:text-slate-200">{group.source}</h3>
-                <Tooltip 
-                  content={
-                    group.reliability === 'Wysokie' 
-                      ? 'Źródło zostało zweryfikowane w oficjalnych bazach prawnych (ISAP, PKN)'
-                      : group.reliability === 'Średnie'
-                      ? 'Źródło wymaga dodatkowej weryfikacji lub może być częściowo nieaktualne'
-                      : 'Źródło nie zostało zweryfikowane lub może być nieaktualne'
-                  }
-                >
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium border cursor-help
-                    ${group.reliability === 'Wysokie' ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800' : 
-                      group.reliability === 'Średnie' ? 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800' : 
-                      'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800'}`}>
-                  Wiarygodność: {group.reliability}
-                </span>
-                </Tooltip>
+          {groupedArray.map((group, groupIndex) => {
+            // Sprawdź czy wszystkie cytowania są z jednego rozdziału
+            const chapters = Array.from(group.chapters.keys());
+            const singleChapter = chapters.length === 1 && chapters[0] !== 'Bez rozdziału' ? chapters[0] : null;
+            
+            return (
+              <div key={groupIndex} className="p-6 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+                {/* Nagłówek źródła - tytuł + rozdział (jeśli jest jeden) */}
+                <div className="flex items-start justify-between mb-4 gap-4">
+                  <h3 className="font-semibold text-gray-900 dark:text-slate-200 flex-1">
+                    {group.title}
+                    {singleChapter && (
+                      <span className="text-gray-600 dark:text-slate-400 font-normal">, ({singleChapter})</span>
+                    )}
+                  </h3>
+                  <Tooltip 
+                    content={
+                      group.reliability === 'Wysokie' 
+                        ? 'Źródło zostało zweryfikowane w oficjalnych bazach prawnych (ISAP, PKN)'
+                        : group.reliability === 'Średnie'
+                        ? 'Źródło wymaga dodatkowej weryfikacji lub może być częściowo nieaktualne'
+                        : 'Źródło nie zostało zweryfikowane lub może być nieaktualne'
+                    }
+                  >
+                    <div className={`
+                      inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
+                      transition-all duration-200 cursor-help flex-shrink-0
+                      ${group.reliability === 'Wysokie' 
+                        ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-700 shadow-sm' 
+                        : group.reliability === 'Średnie' 
+                        ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-700 shadow-sm' 
+                        : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700 shadow-sm'
+                      }
+                    `}>
+                      {group.reliability === 'Wysokie' ? (
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      ) : group.reliability === 'Średnie' ? (
+                        <AlertCircle className="w-3.5 h-3.5" />
+                      ) : (
+                        <XCircle className="w-3.5 h-3.5" />
+                      )}
+                      <span>{group.reliability}</span>
+                    </div>
+                  </Tooltip>
+                </div>
+                
+                {/* Hierarchiczna struktura: Rozdziały → Paragrafy → Snippety */}
+                <div className="space-y-6">
+                  {Array.from(group.chapters.entries()).map(([chapter, articlesMap]) => (
+                    <div key={chapter} className="space-y-4">
+                      {/* Nagłówek rozdziału (tylko jeśli jest więcej niż jeden rozdział) */}
+                      {!singleChapter && chapter !== 'Bez rozdziału' && (
+                        <h4 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mt-2">
+                          {chapter}
+                        </h4>
+                      )}
+                      
+                      {/* Paragrafy/artykuły */}
+                      {Array.from(articlesMap.entries()).map(([articleNumber, citations]) => (
+                        <div key={articleNumber} className="ml-4 space-y-3">
+                          {/* Nagłówek paragrafu/artykułu */}
+                          <h5 className="text-sm font-medium text-gray-800 dark:text-slate-200">
+                            {articleNumber !== 'Bez numeru' ? articleNumber : 'Bez numeru'}
+                          </h5>
+                          
+                          {/* Snippety pod paragrafem */}
+                          <div className="ml-4 space-y-2">
+                            {citations.map((cite, citeIndex) => (
+                              <div key={citeIndex} className="border-l-4 border-gray-300 dark:border-slate-600 pl-4">
+                                <p className="text-sm text-gray-600 dark:text-slate-300 bg-gray-50 dark:bg-slate-900/50 p-3 rounded-md italic font-serif">
+                                  "{cite.snippet}"
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+                
+                {/* Link do źródła - wyświetlany tylko raz na końcu grupy */}
+                {group.url && (
+                  <a 
+                    href={group.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="inline-block mt-4 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline"
+                  >
+                    Zobacz w źródle (ISAP) →
+                  </a>
+                )}
               </div>
-              
-              {/* Wszystkie cytowania z tego źródła */}
-              <div className="space-y-4">
-                {group.citations.map((cite, citeIndex) => (
-                  <div key={citeIndex} className="border-l-4 border-gray-300 dark:border-slate-600 pl-4">
-                    <p className="text-sm text-gray-600 dark:text-slate-300 bg-gray-50 dark:bg-slate-900/50 p-3 rounded-md italic font-serif">
-                      "{cite.snippet}"
-                    </p>
-                  </div>
-                ))}
-              </div>
-              
-              {/* Link do źródła - wyświetlany tylko raz na końcu grupy */}
-              {group.url && (
-                <a 
-                  href={group.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="inline-block mt-4 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline"
-                >
-                  Zobacz w źródle (ISAP) →
-                </a>
-              )}
-            </div>
-          ))}
+            );
+          })}
           {data.citations.length === 0 && (
             <div className="p-8 text-center text-gray-500 dark:text-slate-400">Brak bezpośrednich cytowań prawnych dla tego zapytania.</div>
           )}

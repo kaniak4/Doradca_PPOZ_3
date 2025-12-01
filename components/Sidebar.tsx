@@ -198,68 +198,51 @@ const Sidebar: React.FC<SidebarProps> = ({
                               : 'bg-gray-50 dark:bg-slate-700/50 border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-gray-300 dark:hover:border-slate-500'
                           }`}
                         >
-                          {/* Przycisk usuwania */}
+                          {/* Przycisk usuwania - nachodzi tylko na tytuł */}
                           <button
                             onClick={(e) => handleRemoveEntry(e, entry.id)}
-                            className="absolute top-2 right-2 p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="absolute top-2 right-2 p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 bg-white/80 dark:bg-slate-700/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity z-10"
                             aria-label="Usuń z historii"
                           >
                             <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
                           </button>
 
                           {/* Treść wpisu */}
-                          <div className="pr-8">
-                            <p className="text-sm font-medium text-gray-900 dark:text-slate-200 line-clamp-2 mb-2">
+                          <div>
+                            {/* Tytuł - z padding-right dla ikony kosza */}
+                            <p className="text-sm font-medium text-gray-900 dark:text-slate-200 line-clamp-2 mb-2 pr-10">
                               {entry.query}
                             </p>
+                            {/* Podtytuł - bez padding-right, pełna szerokość */}
                             <p className="text-xs text-gray-600 dark:text-slate-400 line-clamp-1 mb-2">
                               {entry.summary}
                             </p>
 
-                            {/* Metadane */}
-                            <div className="flex items-center gap-2 flex-wrap mt-2">
-                              <span className="text-xs text-gray-500 dark:text-slate-500 flex items-center gap-1">
-                                <Calendar className="w-3 h-3" />
-                                {formatDate(entry.timestamp)}
+                            {/* Metadane - wszystko w jednej linii */}
+                            <div className="flex items-center gap-1.5 flex-nowrap mt-2 overflow-hidden">
+                              <span className="text-xs text-gray-500 dark:text-slate-500 flex items-center gap-1 flex-shrink-0">
+                                <Calendar className="w-3 h-3 flex-shrink-0" />
+                                <span className="whitespace-nowrap">{formatDate(entry.timestamp)}</span>
                               </span>
-                              <span className="text-xs text-gray-500 dark:text-slate-500 flex items-center gap-1">
+                              <span className="text-gray-400 dark:text-slate-600 flex-shrink-0">•</span>
+                              <span className="text-xs text-gray-500 dark:text-slate-500 flex items-center gap-1 flex-shrink-0">
                                 {entry.fullResult.mode === 'information' ? (
                                   <>
-                                    <Info className="w-3 h-3 text-blue-500 dark:text-blue-400" />
-                                    <span className="text-blue-600 dark:text-blue-400 font-medium">Info</span>
+                                    <Info className="w-3 h-3 text-blue-500 dark:text-blue-400 flex-shrink-0" />
+                                    <span className="text-blue-600 dark:text-blue-400 font-medium whitespace-nowrap">Info</span>
                                   </>
                                 ) : (
                                   <>
-                                    <AlertCircle className="w-3 h-3 text-orange-500 dark:text-orange-400" />
-                                    <span className="text-orange-600 dark:text-orange-400 font-medium">Problem</span>
+                                    <AlertCircle className="w-3 h-3 text-orange-500 dark:text-orange-400 flex-shrink-0" />
+                                    <span className="text-orange-600 dark:text-orange-400 font-medium whitespace-nowrap">Problem</span>
                                   </>
                                 )}
-                                {' • '}
-                                <FileText className="w-3 h-3" />
-                                {entry.citationsCount} cyt.
                               </span>
-                            </div>
-
-                            {/* Badge ryzyka */}
-                            <div className="flex items-center gap-1 mt-2 flex-wrap">
-                              {entry.riskAssessment.legalRisk === 'Wysokie' && (
-                                <span
-                                  className={`px-2 py-0.5 text-xs font-medium rounded ${getRiskBadgeColor(
-                                    entry.riskAssessment.legalRisk
-                                  )}`}
-                                >
-                                  Ryzyko Prawne
-                                </span>
-                              )}
-                              {entry.riskAssessment.safetyRisk === 'Wysokie' && (
-                                <span
-                                  className={`px-2 py-0.5 text-xs font-medium rounded ${getRiskBadgeColor(
-                                    entry.riskAssessment.safetyRisk
-                                  )}`}
-                                >
-                                  Ryzyko Bezpieczeństwa
-                                </span>
-                              )}
+                              <span className="text-gray-400 dark:text-slate-600 flex-shrink-0">•</span>
+                              <span className="text-xs text-gray-500 dark:text-slate-500 flex items-center gap-1 flex-shrink-0">
+                                <FileText className="w-3 h-3 flex-shrink-0" />
+                                <span className="whitespace-nowrap">{entry.citationsCount} cyt.</span>
+                              </span>
                             </div>
                           </div>
                         </div>
