@@ -8,19 +8,19 @@ conda activate doradca-ppoz
 
 ## Uruchomienie aplikacji
 
-## Uruchomienie backendu
+### Uruchomienie backendu
 
 ```bash
 npm run dev:server
 ```
 
-## Uruchomienie frontendu
+### Uruchomienie frontendu
 
 ```bash
 npm run dev
 ```
 
-## Uruchomienie backendu i frontendu
+### Uruchomienie backendu i frontendu
 
 ```bash
 npm run dev:all
