@@ -3,11 +3,13 @@
  * Dla narzędzia używanego przez jedną osobę wystarczy globalny limit
  */
 
+import { config } from '../config.js';
+
 // Konfiguracja
 const RATE_LIMIT = {
-  windowMs: 60 * 1000, // 1 minuta
-  maxRequests: parseInt(process.env.RATE_LIMIT_MAX || '10', 10), // domyślnie 10/min
-  enabled: process.env.RATE_LIMIT_ENABLED !== 'false', // domyślnie włączony
+  windowMs: config.rateLimit.windowMs,
+  maxRequests: config.rateLimit.maxRequests,
+  enabled: config.rateLimit.enabled,
 };
 
 // Przechowuje liczniki zapytań (timestampy)

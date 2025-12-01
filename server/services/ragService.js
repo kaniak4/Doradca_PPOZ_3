@@ -35,11 +35,8 @@ export class RAGService {
   async indexDocument(pdfPath, metadata) {
     await this.ensureInitialized();
     
-    console.log(`Indeksowanie dokumentu: ${metadata.title || pdfPath}`);
-    
     try {
       // 1. Parse PDF
-      console.log('  → Parsowanie PDF...');
       const { text, metadata: pdfMetadata } = await parsePDF(pdfPath);
       const fullMetadata = {
         ...metadata,
@@ -48,24 +45,18 @@ export class RAGService {
       };
       
       // 2. Chunk document (flat parsing)
-      console.log('  → Dzielenie na chunki...');
       const chunks = chunkLegalDocumentFlat(text, fullMetadata);
-      console.log(`  → Utworzono ${chunks.length} chunków`);
       
       if (chunks.length === 0) {
         throw new Error('Nie znaleziono żadnych chunków w dokumencie');
       }
       
       // 3. Generate embeddings
-      console.log('  → Generowanie embeddings...');
       const texts = chunks.map(chunk => chunk.text);
       const embeddings = await generateEmbeddingsBatch(texts);
-      console.log(`  → Wygenerowano ${embeddings.length} embeddings`);
       
       // 4. Store in vectorstore
-      console.log('  → Zapis do vectorstore...');
       const chunkIds = await addChunks(chunks, embeddings);
-      console.log(`  → Zapisano ${chunkIds.length} chunków`);
       
       return {
         success: true,
@@ -88,7 +79,7 @@ export class RAGService {
   async search(query, topK = null) {
     await this.ensureInitialized();
     
-    const k = topK || config.rag.topK || 15;
+    const k = topK || config.rag.topK;
     
     try {
       // 1. Generate query embedding
@@ -137,6 +128,105 @@ export class RAGService {
     }
     
     return contextParts.join('\n');
+  }
+
+  /**
+   * Ekstraktuje numer paragrafu/artykułu z tekstu chunka
+   * Szuka pierwszego wystąpienia od góry, ignorując odwołania do innych artykułów
+   * @param {object} chunk - Chunk z metadanymi
+   * @returns {string|null} - Numer artykułu/paragrafu (np. "§ 32" lub "Art. 15") lub null
+   */
+  extractArticleNumber(chunk) {
+    // Najpierw sprawdź, czy chunk ma już ustawiony numer w citation
+    if (chunk.citation?.article) {
+      return chunk.citation.article;
+    }
+    
+    // Jeśli nie, spróbuj zbudować z metadata
+    if (chunk.metadata?.number) {
+      const type = chunk.metadata?.type === 'article' ? 'Art.' : '§';
+      return `${type} ${chunk.metadata.number}`;
+    }
+    
+    // W przeciwnym razie, spróbuj wyciągnąć z tekstu
+    const text = (chunk.rawText || chunk.text || '').trim();
+    if (!text) {
+      return null;
+    }
+    
+    // Wzorce do wykrywania numerów paragrafów/artykułów
+    // Szukamy na początku tekstu (pierwsze 500 znaków) - to powinno wystarczyć
+    const textStart = text.substring(0, 500);
+    
+    // Wzorce fraz wskazujących na odwołanie do innego artykułu/paragrafu
+    const referencePatterns = [
+      /o\s+których\s+mowa\s+w/i,
+      /odpowiadać\s+wymaganiom/i,
+      /zgodnie\s+z/i,
+      /zgodnie\s+z\s+przepisami/i,
+      /na\s+podstawie/i,
+      /w\s+rozumieniu/i,
+      /ust\.\s+\d+/i, // "ust. 1" przed "§" wskazuje na odwołanie
+      /z\s+zastrzeżeniem/i,
+      /określon\w+\s+w/i,
+      /zawart\w+\s+w/i,
+      /wymienion\w+\s+w/i,
+      /z\s+uwzględnieniem/i,
+      /przy\s+zachowaniu/i,
+      /stosuje\s+się/i,
+      /wynikając\w+\s+z/i,
+      /wskazan\w+\s+w/i,
+      /scharakteryzowan\w+\s+w/i
+    ];
+    
+    // Wzorzec dla paragrafu: "§ 32" na początku linii
+    const paragraphPattern = /(?:^|\n)\s*§\s*(\d+[a-z]?)[\.\)]?\s/g;
+    const paragraphMatches = [...textStart.matchAll(paragraphPattern)];
+    
+    // Wzorzec dla artykułu: "Art. 15" na początku linii
+    const articlePattern = /(?:^|\n)\s*Art\.\s*(\d+[a-z]?)[\.\)]?\s/gi;
+    const articleMatches = [...textStart.matchAll(articlePattern)];
+    
+    // Priorytet: paragraf przed artykułem (jeśli oba występują)
+    // Szukamy pierwszego wystąpienia, które NIE jest odwołaniem
+    for (const match of paragraphMatches) {
+      const matchIndex = match.index;
+      const beforeMatch = textStart.substring(0, matchIndex);
+      
+      // Sprawdź, czy przed "§" jest dużo tekstu (więcej niż 100 znaków) - prawdopodobnie odwołanie
+      if (matchIndex > 100) {
+        // Sprawdź, czy przed "§" są frazy wskazujące na odwołanie
+        const isReference = referencePatterns.some(pattern => pattern.test(beforeMatch));
+        if (isReference) {
+          continue; // To jest odwołanie, pomiń
+        }
+      }
+      
+      // Jeśli "§" jest na początku tekstu lub po małej ilości białych znaków,
+      // to prawdopodobnie to główny paragraf
+      if (matchIndex < 100 || beforeMatch.trim().length === 0 || beforeMatch.match(/^[\s\n]*$/)) {
+        return `§ ${match[1]}`;
+      }
+    }
+    
+    // Podobnie dla artykułu
+    for (const match of articleMatches) {
+      const matchIndex = match.index;
+      const beforeMatch = textStart.substring(0, matchIndex);
+      
+      if (matchIndex > 100) {
+        const isReference = referencePatterns.some(pattern => pattern.test(beforeMatch));
+        if (isReference) {
+          continue;
+        }
+      }
+      
+      if (matchIndex < 100 || beforeMatch.trim().length === 0 || beforeMatch.match(/^[\s\n]*$/)) {
+        return `Art. ${match[1]}`;
+      }
+    }
+    
+    return null;
   }
 
   /**
@@ -204,20 +294,24 @@ export class RAGService {
         
         // Zwiększ limit do 1000 znaków - wystarczy dla większości przepisów
         // Ale zachowaj czytelność - nie obcinaj w środku zdania
+        const maxSnippetLength = config.rag.maxCitationSnippetLength;
+        const sentenceThreshold = config.rag.citationSentenceThreshold;
+        const keyLength = config.rag.citationKeyLength;
+        
         let finalSnippet = chunkText;
-        if (finalSnippet.length > 1000) {
+        if (finalSnippet.length > maxSnippetLength) {
           // Znajdź ostatnie pełne zdanie przed limitem
-          const truncated = finalSnippet.substring(0, 1000);
+          const truncated = finalSnippet.substring(0, maxSnippetLength);
           const lastSentenceEnd = Math.max(
             truncated.lastIndexOf('.'),
             truncated.lastIndexOf('!'),
             truncated.lastIndexOf('?')
           );
-          if (lastSentenceEnd > 800) {
-            // Jeśli mamy zdanie zakończone przed 1000 znakami, użyj go
+          if (lastSentenceEnd > sentenceThreshold) {
+            // Jeśli mamy zdanie zakończone przed limitem, użyj go
             finalSnippet = truncated.substring(0, lastSentenceEnd + 1);
           } else {
-            // W przeciwnym razie użyj pełnych 1000 znaków z "..."
+            // W przeciwnym razie użyj pełnego limitu z "..."
             finalSnippet = truncated + '...';
           }
         }
@@ -225,11 +319,17 @@ export class RAGService {
         // Stwórz unikalny klucz dla deduplikacji: source + chunkId (najlepsze) lub znormalizowany snippet
         const citationKey = matchingChunk.chunkId 
           ? `${source.toLowerCase()}:${matchingChunk.chunkId}`
-          : `${source.toLowerCase()}:${finalSnippet.substring(0, 100).toLowerCase().trim().replace(/\s+/g, ' ')}`;
+          : `${source.toLowerCase()}:${finalSnippet.substring(0, keyLength).toLowerCase().trim().replace(/\s+/g, ' ')}`;
         
         // Sprawdź czy to cytowanie już nie zostało dodane
         if (!seenCitations.has(citationKey)) {
           seenCitations.add(citationKey);
+          
+          // Ekstraktuj numer artykułu/paragrafu - użyj citation.article lub spróbuj wyciągnąć z tekstu
+          let articleNumber = matchingChunk.citation?.article || null;
+          if (!articleNumber) {
+            articleNumber = this.extractArticleNumber(matchingChunk);
+          }
           
           verifiedCitations.push({
             source: matchingChunk.metadata?.title || source,
@@ -238,22 +338,26 @@ export class RAGService {
             verified: true,
             reliability: 'Wysokie',
             chunkId: matchingChunk.chunkId,
-            articleNumber: matchingChunk.citation?.article || null,
+            articleNumber: articleNumber,
             pageNumber: matchingChunk.metadata?.pageNumber || null,
           });
         }
       } else {
         // Jeśli nie znaleziono dopasowania, oznacz jako niezweryfikowane
         // Użyj większego limitu również dla niezweryfikowanych
+        const maxSnippetLength = config.rag.maxCitationSnippetLength;
+        const sentenceThreshold = config.rag.citationSentenceThreshold;
+        const keyLength = config.rag.citationKeyLength;
+        
         let unverifiedSnippet = snippet;
-        if (unverifiedSnippet.length > 1000) {
-          const truncated = unverifiedSnippet.substring(0, 1000);
+        if (unverifiedSnippet.length > maxSnippetLength) {
+          const truncated = unverifiedSnippet.substring(0, maxSnippetLength);
           const lastSentenceEnd = Math.max(
             truncated.lastIndexOf('.'),
             truncated.lastIndexOf('!'),
             truncated.lastIndexOf('?')
           );
-          if (lastSentenceEnd > 800) {
+          if (lastSentenceEnd > sentenceThreshold) {
             unverifiedSnippet = truncated.substring(0, lastSentenceEnd + 1);
           } else {
             unverifiedSnippet = truncated + '...';
@@ -261,7 +365,7 @@ export class RAGService {
         }
         
         // Dla niezweryfikowanych też deduplikuj po source + znormalizowanym snippet
-        const unverifiedKey = `${source.toLowerCase()}:${unverifiedSnippet.substring(0, 100).toLowerCase().trim().replace(/\s+/g, ' ')}`;
+        const unverifiedKey = `${source.toLowerCase()}:${unverifiedSnippet.substring(0, keyLength).toLowerCase().trim().replace(/\s+/g, ' ')}`;
         
         if (!seenCitations.has(unverifiedKey)) {
           seenCitations.add(unverifiedKey);

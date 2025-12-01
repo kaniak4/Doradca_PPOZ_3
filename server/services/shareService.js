@@ -5,10 +5,11 @@
 
 import cacheService from './cacheService.js';
 import crypto from 'crypto';
+import { config } from '../config.js';
 
 class ShareService {
   constructor() {
-    this.shareTTL = 7 * 24 * 60 * 60 * 1000; // 7 dni w milisekundach
+    this.shareTTL = config.share.ttl;
   }
 
   /**

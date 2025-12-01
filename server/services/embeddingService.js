@@ -37,9 +37,6 @@ initializeClients();
  */
 export function reinitializeClients() {
   initializeClients();
-  console.log('Klienci embeddings ponownie zainicjalizowani.');
-  console.log(`OpenAI client: ${openaiClient ? '✅' : '❌'}`);
-  console.log(`Gemini client: ${geminiClient ? '✅' : '❌'}`);
 }
 
 /**
@@ -87,7 +84,7 @@ export async function generateEmbeddingsBatch(texts) {
   
   // Dla Gemini, przetwarzamy sekwencyjnie (lub w małych batchach)
   const embeddings = [];
-  const batchSize = 10; // Gemini może mieć limity batch
+  const batchSize = config.rag.geminiEmbeddingBatchSize;
   
   for (let i = 0; i < texts.length; i += batchSize) {
     const batch = texts.slice(i, i + batchSize);
@@ -128,7 +125,7 @@ async function generateOpenAIEmbedding(text) {
   
   try {
     const response = await openaiClient.embeddings.create({
-      model: 'text-embedding-3-small',
+      model: config.rag.openaiEmbeddingModel,
       input: text,
     });
     
@@ -147,11 +144,11 @@ async function generateOpenAIEmbeddingsBatch(texts) {
   }
   
   // Filtruj puste teksty i obetnij zbyt długie (max ~8000 tokenów ≈ 6000 znaków)
-  // ⚠️ UWAGA: Chunki dłuższe niż 6000 znaków są automatycznie obcinane.
+  // ⚠️ UWAGA: Chunki dłuższe niż maxEmbeddingTextLength są automatycznie obcinane.
   // Oryginalny tekst jest zachowany w polu 'rawText' w vectorstore.
   // Powód: OpenAI embeddings API ma limit długości tekstu (~8000 tokenów).
   // Lokalizacja dokumentacji: README.md, sekcja "System RAG"
-  const MAX_TEXT_LENGTH = 6000;
+  const MAX_TEXT_LENGTH = config.rag.maxEmbeddingTextLength;
   const processedTexts = texts
     .map(text => {
       if (!text || typeof text !== 'string' || text.trim().length === 0) {
@@ -171,14 +168,14 @@ async function generateOpenAIEmbeddingsBatch(texts) {
   }
   
   // OpenAI ma limit batch size (max 2048 tekstów), więc dzielimy na mniejsze partie
-  const BATCH_SIZE = 100; // Bezpieczny rozmiar batch
+  const BATCH_SIZE = config.rag.embeddingBatchSize;
   const allEmbeddings = [];
   
   try {
     for (let i = 0; i < processedTexts.length; i += BATCH_SIZE) {
       const batch = processedTexts.slice(i, i + BATCH_SIZE);
       const response = await openaiClient.embeddings.create({
-        model: 'text-embedding-3-small',
+        model: config.rag.openaiEmbeddingModel,
         input: batch,
       });
       
@@ -219,7 +216,7 @@ export function getEmbeddingModelInfo() {
     return { provider: 'gemini', available: true };
   }
   if (openaiClient) {
-    return { provider: 'openai', available: true, model: 'text-embedding-3-small' };
+    return { provider: 'openai', available: true, model: config.rag.openaiEmbeddingModel };
   }
   return { provider: 'none', available: false };
 }

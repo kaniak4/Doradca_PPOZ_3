@@ -3,11 +3,13 @@
  * W produkcji można zastąpić Redis lub innym rozwiązaniem
  */
 
+import { config } from '../config.js';
+
 class CacheService {
   constructor() {
     this.cache = new Map();
-    this.maxSize = 100; // Maksymalna liczba wpisów w cache
-    this.defaultTTL = 24 * 60 * 60 * 1000; // 24 godziny w milisekundach
+    this.maxSize = config.cache.maxSize;
+    this.defaultTTL = config.cache.defaultTTL;
   }
 
   /**

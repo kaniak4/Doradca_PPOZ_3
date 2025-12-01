@@ -163,7 +163,6 @@ app.post('/api/analyze', rateLimiter, async (req, res) => {
     const cachedResult = cacheService.get(cacheKey);
     
     if (cachedResult) {
-      console.log(`Cache hit for query: ${query.substring(0, 50)}... (mode: ${mode})`);
       return res.json({
         ...cachedResult,
         cached: true
@@ -171,7 +170,6 @@ app.post('/api/analyze', rateLimiter, async (req, res) => {
     }
 
     // Jeśli nie ma w cache, wykonaj analizę
-    console.log(`Cache miss - analyzing query: ${query.substring(0, 50)}... (mode: ${mode})`);
     const result = await analyzeSafetyQuery(query, mode);
     
     // Zapisz w cache
