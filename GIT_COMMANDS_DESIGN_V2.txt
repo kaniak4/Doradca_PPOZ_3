@@ -1,0 +1,31 @@
+# Komendy Git dla Design v2 (v3.0 Mockup)
+
+## 1. Dodaj wszystkie zmienione pliki
+git add .
+
+## 2. Utwórz commit z opisem zmian
+git commit -m "feat: design v2 - wersja 3.0 (Mockup)
+
+- Kompletny redesign interfejsu użytkownika
+- Dodano glassmorphism effects
+- Nowy komponent ProgressIndicator z wizualnym wskaźnikiem postępu
+- Nowy komponent ConfirmModal z glassmorphism
+- Ulepszone komponenty: Dashboard, Sidebar, AgentCard, Toast
+- Ulepszone skeleton loaders
+- Lepsza paleta kolorów i responsywność
+- Płynniejsze animacje i przejścia
+- Zaktualizowany README.md do wersji 3.0"
+
+## 3. Wypchnij branch design-v2 do GitHub
+git push origin design-v2
+
+---
+
+## Opcjonalne: Sprawdź status przed push
+git status
+
+## Opcjonalne: Zobacz różnice przed commitowaniem
+git diff
+
+## Opcjonalne: Zobacz historię commitów
+git log --oneline -5

@@ -25,3 +25,22 @@ npm run dev
 ```bash
 npm run dev:all
 ```
+
+### Przełączanie między branchami
+```bash
+# Wróć do głównej wersji
+git checkout main
+
+# Wróć do designu
+git checkout design-v2
+
+### Gdy design jest gotowy — scalenie
+
+# Przełącz się na main
+git checkout main
+
+# Scal zmiany z design-v2
+git merge design-v2
+
+# Wypchnij zmiany
+git push origin main

@@ -1,27 +1,109 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { HistoryEntry, AnalysisResult } from '../types';
 import { useHistory } from '../hooks/useHistory';
+import ConfirmModal from './ConfirmModal';
+import { useToast } from '../hooks/useToast';
 import { 
   History as HistoryIcon, 
   X, 
   Search, 
   Trash2, 
   Calendar,
-  AlertTriangle,
   FileText,
   ChevronRight,
   Settings,
   User,
   Info,
-  AlertCircle
+  AlertCircle,
+  Sparkles,
+  BookOpen,
+  Shield,
+  Zap
 } from 'lucide-react';
-import Tooltip from './Tooltip';
+
+// Example queries for empty state
+const EXAMPLE_QUERIES = [
+  {
+    query: "Jaka jest wymagana szerokość drogi ewakuacyjnej w biurze dla 200 osób?",
+    icon: <Zap className="w-4 h-4" />,
+    category: "Ewakuacja"
+  },
+  {
+    query: "Czy gaśnice muszą wisieć na ścianie czy mogą stać na podłodze?",
+    icon: <Shield className="w-4 h-4" />,
+    category: "Sprzęt PPOŻ"
+  },
+  {
+    query: "Jakie są wymagania dotyczące hydrantów wewnętrznych w magazynie?",
+    icon: <BookOpen className="w-4 h-4" />,
+    category: "Przepisy"
+  },
+];
+
+// Empty History State Component
+const EmptyHistoryState: React.FC<{ onQueryClick?: (query: string) => void }> = ({ onQueryClick }) => {
+  return (
+    <div className="py-8 px-4">
+      <div className="text-center mb-6">
+        <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-orange-100 to-orange-200 dark:from-orange-900/30 dark:to-orange-800/30 rounded-full mb-4">
+          <Sparkles className="w-8 h-8 text-orange-600 dark:text-orange-400" />
+        </div>
+        <h3 className="text-lg font-bold text-gray-900 dark:text-slate-200 mb-2">
+          Jak zacząć?
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-slate-400">
+          Wprowadź swoje pierwsze zapytanie dotyczące PPOŻ/BHP, a otrzymasz szczegółową analizę prawną.
+        </p>
+      </div>
+
+      <div className="space-y-2 mb-6">
+        <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-3">
+          Przykładowe zapytania:
+        </p>
+        {EXAMPLE_QUERIES.map((example, idx) => (
+          <button
+            key={idx}
+            onClick={() => onQueryClick?.(example.query)}
+            className="w-full text-left p-3 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg hover:border-orange-300 dark:hover:border-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all group cursor-pointer"
+          >
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 text-orange-600 dark:text-orange-400 group-hover:scale-110 transition-transform">
+                {example.icon}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-medium text-orange-600 dark:text-orange-400">
+                    {example.category}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-700 dark:text-slate-300 line-clamp-2 group-hover:text-gray-900 dark:group-hover:text-slate-100 transition-colors">
+                  {example.query}
+                </p>
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+          <div className="text-xs text-blue-800 dark:text-blue-300">
+            <p className="font-semibold mb-1">Wskazówka:</p>
+            <p>Opisz problem jak najszczegółowiej. System przeanalizuje go pod kątem przepisów prawnych i przedstawi rekomendacje.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectAnalysis: (result: AnalysisResult, query: string) => void;
   currentAnalysisId?: string | null;
+  onQueryClick?: (query: string) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -29,11 +111,14 @@ const Sidebar: React.FC<SidebarProps> = ({
   onClose,
   onSelectAnalysis,
   currentAnalysisId,
+  onQueryClick,
 }) => {
-  const { history, isLoading, removeEntry, clearHistory, searchHistory } = useHistory();
+  const { history, isLoading, removeEntry, clearHistory, searchHistory, addEntry } = useHistory();
+  const { showToast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['history']));
+  const deletedEntryRef = useRef<HistoryEntry | null>(null);
 
   // Filtruj historię na podstawie wyszukiwania
   const filteredHistory = useMemo(() => {
@@ -60,7 +145,30 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const handleRemoveEntry = (e: React.MouseEvent, id: string) => {
     e.stopPropagation(); // Zapobiegaj wywołaniu handleSelectEntry
-    removeEntry(id);
+    
+    const entry = history.find(h => h.id === id);
+    if (entry) {
+      // Optimistic update - usuń od razu z UI
+      deletedEntryRef.current = entry;
+      removeEntry(id);
+      
+      // Pokaż toast z możliwością cofnięcia
+      showToast(
+        `Analiza "${entry.query.substring(0, 40)}${entry.query.length > 40 ? '...' : ''}" usunięta`,
+        'success',
+        5000,
+        undefined,
+        {
+          label: 'Cofnij',
+          onClick: () => {
+            if (deletedEntryRef.current) {
+              addEntry(deletedEntryRef.current.fullResult, deletedEntryRef.current.query);
+              deletedEntryRef.current = null;
+            }
+          }
+        }
+      );
+    }
   };
 
   const handleClearAll = () => {
@@ -88,39 +196,28 @@ const Sidebar: React.FC<SidebarProps> = ({
     });
   };
 
-  const getRiskBadgeColor = (risk: 'Niskie' | 'Średnie' | 'Wysokie') => {
-    switch (risk) {
-      case 'Wysokie':
-        return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300';
-      case 'Średnie':
-        return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300';
-      case 'Niskie':
-        return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300';
-    }
-  };
-
   return (
     <>
-      {/* Overlay - tło przy otwartym sidebarze (wszystkie rozdzielczości) */}
+      {/* Overlay - tło przy otwartym sidebarze z glassmorphism */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 dark:bg-black/70 z-40"
+          className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm z-40 transition-opacity duration-300"
           onClick={onClose}
           aria-hidden="true"
         />
       )}
 
-      {/* Sidebar - overlay na wszystkich rozdzielczościach */}
+      {/* Sidebar - overlay na wszystkich rozdzielczościach z glassmorphism */}
       <aside
-        className={`fixed top-0 right-0 h-full w-80 bg-white dark:bg-slate-800 shadow-2xl z-50 transform transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 right-0 h-full w-80 bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl shadow-2xl dark:shadow-blue z-50 transform transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
-        } flex flex-col border-l border-gray-200 dark:border-slate-700`}
+        } flex flex-col border-l border-white/20 dark:border-slate-700/50`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-slate-200 flex items-center gap-2">
-            <HistoryIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            Historia i Ustawienia
+        <div className="flex items-center justify-between p-4 border-b border-gray-200/50 dark:border-slate-700/50 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white dark:text-glow-white flex items-center gap-2">
+            <Settings className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            Ustawienia
           </h2>
           <button
             onClick={onClose}
@@ -133,6 +230,32 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Content - scrollable */}
         <div className="flex-1 overflow-y-auto">
+          {/* Sekcja: Jak zacząć */}
+          <div className="border-b border-gray-200 dark:border-slate-700">
+            <button
+              onClick={() => toggleSection('getting-started')}
+              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <Sparkles className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                <span className="font-semibold text-gray-900 dark:text-white dark:text-glow-white">
+                  Jak zacząć?
+                </span>
+              </div>
+              <ChevronRight
+                className={`w-5 h-5 text-gray-400 dark:text-slate-500 transition-transform ${
+                  expandedSections.has('getting-started') ? 'rotate-90' : ''
+                }`}
+              />
+            </button>
+
+            {expandedSections.has('getting-started') && (
+              <div>
+                <EmptyHistoryState onQueryClick={onQueryClick} />
+              </div>
+            )}
+          </div>
+
           {/* Sekcja: Historia */}
           <div className="border-b border-gray-200 dark:border-slate-700">
             <button
@@ -141,7 +264,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             >
               <div className="flex items-center gap-3">
                 <HistoryIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                <span className="font-semibold text-gray-900 dark:text-slate-200">
+                <span className="font-semibold text-gray-900 dark:text-white dark:text-glow-white">
                   Historia Analiz
                 </span>
                 {history.length > 0 && (
@@ -167,7 +290,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder="Szukaj w historii..."
-                    className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-sm text-gray-900 dark:text-slate-200 placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+                    className="w-full pl-10 pr-4 py-2 bg-white dark:bg-gradient-to-br dark:from-slate-800 dark:to-slate-900 border border-gray-200 dark:border-slate-600 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:shadow-blue"
                   />
                 </div>
 
@@ -178,11 +301,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   </div>
                 ) : filteredHistory.length === 0 ? (
                   <div className="text-center py-8 text-gray-500 dark:text-slate-400 text-sm">
-                    {searchTerm ? (
-                      <>Nie znaleziono analiz pasujących do wyszukiwania</>
-                    ) : (
-                      <>Brak historii analiz. Twoje analizy będą tu zapisane.</>
-                    )}
+                    {searchTerm ? 'Nie znaleziono analiz pasujących do wyszukiwania' : 'Brak historii analiz'}
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -328,6 +447,18 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
       </aside>
+
+      {/* Clear History Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showClearConfirm}
+        title="Usunąć całą historię?"
+        message={`Czy na pewno chcesz usunąć całą historię (${history.length} ${history.length === 1 ? 'analiza' : 'analiz'})? Ta operacja jest nieodwracalna.`}
+        confirmText="Tak, usuń wszystko"
+        cancelText="Anuluj"
+        confirmVariant="destructive"
+        onConfirm={handleClearAll}
+        onCancel={() => setShowClearConfirm(false)}
+      />
     </>
   );
 };

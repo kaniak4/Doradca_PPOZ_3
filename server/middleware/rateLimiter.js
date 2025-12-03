@@ -48,6 +48,13 @@ export const rateLimiter = (req, res, next) => {
   if (requestTimestamps.length >= RATE_LIMIT.maxRequests) {
     const oldestRequest = requestTimestamps[0];
     const waitTime = Math.ceil((RATE_LIMIT.windowMs - (now - oldestRequest)) / 1000);
+    const queuePosition = requestTimestamps.length - RATE_LIMIT.maxRequests + 1;
+    
+    // Set rate limit headers
+    res.setHeader('X-RateLimit-Limit', RATE_LIMIT.maxRequests);
+    res.setHeader('X-RateLimit-Remaining', 0);
+    res.setHeader('X-RateLimit-Reset', new Date(now + RATE_LIMIT.windowMs).toISOString());
+    res.setHeader('X-RateLimit-QueuePosition', queuePosition);
     
     return res.status(429).json({
       error: 'Przekroczono limit zapytań',
@@ -55,6 +62,7 @@ export const rateLimiter = (req, res, next) => {
       retryAfter: waitTime,
       limit: RATE_LIMIT.maxRequests,
       window: RATE_LIMIT.windowMs / 1000,
+      queuePosition: queuePosition,
     });
   }
 

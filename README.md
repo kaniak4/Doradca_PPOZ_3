@@ -429,13 +429,37 @@ W przypadku problemów lub pytań:
 
 ## 📄 Dodatkowe informacje
 
-- **Wersja:** 2.0 (Mockup)
+- **Wersja:** 3.0 (Mockup)
 - **Status:** W rozwoju
 - **Wymagania:** Node.js 18+, npm 9+
 
 ## 📝 Changelog
 
-### v2.0 (Mockup) - Aktualna wersja
+### v3.0 (Mockup) - Aktualna wersja (Design v2)
+
+**Główne zmiany designu:**
+- 🎨 **Kompletny redesign interfejsu użytkownika** - Nowoczesny, przejrzysty i intuicyjny design
+- ✨ **Glassmorphism effects** - Efekty przezroczystości i rozmycia tła dla lepszego UX
+- 🎯 **Nowy komponent ProgressIndicator** - Wizualny wskaźnik postępu analizy z etapami
+- 🪟 **Modal potwierdzający (ConfirmModal)** - Nowoczesne modale z glassmorphism
+- 🎨 **Ulepszone komponenty UI:**
+  - Zaktualizowany Dashboard z lepszą organizacją treści
+  - Ulepszona Sidebar z płynniejszą nawigacją
+  - Nowoczesne karty ekspertów (AgentCard) z lepszą wizualizacją
+  - Ulepszone komponenty Toast z lepszymi animacjami
+  - Nowe skeleton loaders dla lepszego feedbacku podczas ładowania
+- 🌈 **Ulepszona paleta kolorów** - Bardziej spójna i profesjonalna
+- 📱 **Lepsza responsywność** - Zoptymalizowane dla różnych rozdzielczości
+- ⚡ **Płynniejsze animacje** - Poprawione przejścia i efekty wizualne
+- 🎭 **Lepsze zarządzanie stanami** - Ulepszona obsługa błędów i komunikatów
+
+**Ulepszenia techniczne:**
+- 🔧 Refaktoryzacja komponentów UI dla lepszej wydajności
+- 📦 Dodano nowe komponenty pomocnicze (ConfirmModal, ProgressIndicator)
+- 🎨 Ulepszone style i animacje w index.html
+- 🛠️ Poprawki w obsłudze toast notifications
+
+### v2.0 (Mockup) - Poprzednia wersja
 
 **Główne zmiany:**
 - ✨ Dodano system RAG (Retrieval-Augmented Generation) dla weryfikacji cytowań prawnych

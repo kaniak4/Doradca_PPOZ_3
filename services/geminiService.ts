@@ -86,6 +86,9 @@ export const analyzeSafetyQuery = async (
     : timeoutController.signal;
 
   try {
+    // Start measuring response time
+    const startTime = performance.now();
+    
     const response = await fetch(`${API_BASE_URL}/api/analyze`, {
       method: 'POST',
       headers: {
@@ -96,18 +99,36 @@ export const analyzeSafetyQuery = async (
     });
 
     clearTimeout(timeoutId);
+    
+    // Calculate response time
+    const endTime = performance.now();
+    const responseTimeMs = Math.round(endTime - startTime);
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
       
       // Różnicuj błędy na podstawie status code
       if (response.status === 429) {
-        // Rate limit exceeded
-        throw new AnalysisError(
+        // Rate limit exceeded - extract retry info
+        const retryAfter = errorData.retryAfter || null;
+        const queuePositionHeader = response.headers.get('X-RateLimit-QueuePosition');
+        const queuePosition = queuePositionHeader ? parseInt(queuePositionHeader, 10) : (errorData.queuePosition || null);
+        
+        const error = new AnalysisError(
           errorData.message || errorData.error || 'Przekroczono limit zapytań. Spróbuj ponownie za chwilę.',
           ErrorType.RATE_LIMIT,
           response.status
         );
+        
+        // Add queue position and retry info to error
+        if (queuePosition !== null && queuePosition >= 0) {
+          (error as any).queuePosition = queuePosition;
+        }
+        if (retryAfter !== null) {
+          (error as any).retryAfter = retryAfter;
+        }
+        
+        throw error;
       } else if (response.status >= 500) {
         throw new AnalysisError(
           errorData.error || 'Błąd serwera. Spróbuj ponownie za chwilę.',
@@ -136,7 +157,12 @@ export const analyzeSafetyQuery = async (
     }
 
     const result = await response.json() as AnalysisResult;
-    return result;
+    
+    // Attach response time to result (as a non-enumerable property)
+    return Object.assign(result, { 
+      _responseTime: responseTimeMs,
+      _performanceLabel: responseTimeMs < 3000 ? 'Fast' : 'Slow'
+    });
 
   } catch (error) {
     clearTimeout(timeoutId);

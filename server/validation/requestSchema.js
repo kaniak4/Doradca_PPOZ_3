@@ -112,7 +112,7 @@ export const AnalyzeRequestSchema = z.object({
       invalid_type_error: 'Query must be a string',
     })
     .min(10, 'Query must be at least 10 characters long')
-    .max(2000, 'Query must not exceed 2000 characters')
+    .max(1000, 'Query must not exceed 1000 characters')
     .refine(
       (val) => {
         const sanitized = sanitizeQuery(val);

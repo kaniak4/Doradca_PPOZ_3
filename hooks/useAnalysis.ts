@@ -101,6 +101,9 @@ interface UseAnalysisReturn {
   validationError: string | null;
   processingStage: ProcessingStage;
   backendHealth: boolean | null;
+  responseTime: number | null; // Czas odpowiedzi w ms
+  performanceLabel: 'Fast' | 'Slow' | null; // Etykieta wydajności
+  queuePosition: number | null; // Pozycja w kolejce (rate limit)
   handleAnalyze: (mode: AnalysisMode) => Promise<void>;
   handleCancel: () => void;
   handleQueryChange: (value: string) => void;
@@ -123,6 +126,9 @@ export const useAnalysis = (): UseAnalysisReturn => {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [processingStage, setProcessingStage] = useState<ProcessingStage>('idle');
   const [backendHealth, setBackendHealth] = useState<boolean | null>(null);
+  const [responseTime, setResponseTime] = useState<number | null>(null);
+  const [performanceLabel, setPerformanceLabel] = useState<'Fast' | 'Slow' | null>(null);
+  const [queuePosition, setQueuePosition] = useState<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Health check przy starcie i okresowo
@@ -152,8 +158,8 @@ export const useAnalysis = (): UseAnalysisReturn => {
       return 'Zapytanie jest zbyt krótkie. Opisz problem bardziej szczegółowo (minimum 10 znaków)';
     }
     
-    if (trimmed.length > 2000) {
-      return 'Zapytanie jest zbyt długie. Maksymalnie 2000 znaków';
+    if (trimmed.length > 1000) {
+      return 'Zapytanie jest zbyt długie. Maksymalnie 1000 znaków';
     }
     
     // Sprawdź czy tekst wygląda na losowy/nonsensowny
@@ -209,12 +215,22 @@ export const useAnalysis = (): UseAnalysisReturn => {
     }, 2000);
 
     try {
+      const startTime = performance.now();
       const data = await analyzeSafetyQuery(query, mode, abortControllerRef.current.signal);
+      const endTime = performance.now();
+      const responseTimeMs = Math.round(endTime - startTime);
+      
       clearInterval(stageInterval);
       setProcessingStage('complete');
       setResult(data);
       setError(null);
       setErrorType(null);
+      
+      // Update performance metrics
+      setResponseTime(responseTimeMs);
+      setPerformanceLabel(responseTimeMs < 3000 ? 'Fast' : 'Slow');
+      setQueuePosition(null);
+      
       // Aktualizuj health check po udanym zapytaniu
       setBackendHealth(true);
     } catch (err) {
@@ -224,10 +240,28 @@ export const useAnalysis = (): UseAnalysisReturn => {
           setError(null);
           setErrorType(null);
           setProcessingStage('idle');
+          setResponseTime(null);
+          setPerformanceLabel(null);
+          setQueuePosition(null);
         } else {
           setError(err.message);
           setErrorType(err.type);
           setProcessingStage('idle');
+          
+          // Handle rate limit with queue position
+          if (err.type === ErrorType.RATE_LIMIT) {
+            const queuePos = (err as any).queuePosition;
+            if (queuePos !== undefined && queuePos !== null) {
+              setQueuePosition(queuePos);
+            }
+            setResponseTime(null);
+            setPerformanceLabel(null);
+          } else {
+            setResponseTime(null);
+            setPerformanceLabel(null);
+            setQueuePosition(null);
+          }
+          
           // Aktualizuj health check przy błędzie sieci
           if (err.type === ErrorType.NETWORK || err.type === ErrorType.TIMEOUT) {
             setBackendHealth(false);
@@ -322,6 +356,9 @@ export const useAnalysis = (): UseAnalysisReturn => {
     validationError,
     processingStage,
     backendHealth,
+    responseTime,
+    performanceLabel,
+    queuePosition,
     handleAnalyze,
     handleCancel,
     handleQueryChange,
