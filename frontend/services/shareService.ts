@@ -1,6 +1,6 @@
 import { AnalysisResult } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3003';
 
 export interface ShareResponse {
   shareId: string;
@@ -44,7 +44,7 @@ export const createShare = async (analysisResult: AnalysisResult): Promise<Share
   } catch (error) {
     console.error('Share creation error:', error);
     if (error instanceof TypeError && error.message.includes('fetch')) {
-      throw new Error('Brak połączenia z serwerem. Sprawdź czy backend jest uruchomiony na porcie 3001.');
+      throw new Error('Brak połączenia z serwerem. Sprawdź czy backend jest uruchomiony na porcie 3003.');
     }
     throw error;
   }

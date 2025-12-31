@@ -316,7 +316,7 @@ export const useAnalysis = (): UseAnalysisReturn => {
       case 'analyzing':
         return 'Analizowanie problemu...';
       case 'generating-experts':
-        return 'Generowanie opinii ekspertów...';
+        return 'Generowanie opinii agentów...';
       case 'verifying-sources':
         return 'Weryfikacja źródeł prawnych...';
       case 'complete':

@@ -1,41 +1,20 @@
 {
-  "name": "copy-of-doradca-ppoż-ai",
+  "name": "doradca-ppoz-ai",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "dev:server": "node server/index.js",
+    "dev": "cd frontend && npm run dev",
+    "dev:server": "node backend/server/index.js",
     "dev:all": "concurrently \"npm run dev:server\" \"npm run dev\"",
-    "build": "vite build",
-    "preview": "vite preview",
-    "start:server": "node server/index.js"
-  },
-  "dependencies": {
-    "@google/genai": "^1.30.0",
-    "@react-pdf/renderer": "^4.3.1",
-    "cors": "^2.8.5",
-    "docx": "^9.5.1",
-    "dotenv": "^16.4.5",
-    "express": "^4.21.1",
-    "file-saver": "^2.0.5",
-    "lucide-react": "^0.555.0",
-    "openai": "^4.0.0",
-    "pdf-parse": "^1.1.1",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "zod": "^3.23.8"
+    "build": "cd frontend && npm run build",
+    "preview": "cd frontend && npm run preview",
+    "install": "cd frontend && npm install",
+    "install:all": "cd frontend && npm install",
+    "postinstall": "cd backend && ln -sf ../frontend/node_modules node_modules || true"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@types/react": "^19.2.7",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^5.0.0",
-    "autoprefixer": "^10.4.22",
-    "concurrently": "^9.1.0",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.17",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "concurrently": "^9.1.0"
   }
 }
+

@@ -55,10 +55,10 @@ Utwórz plik `.env` w głównym katalogu:
 GEMINI_API_KEY=your_gemini_api_key_here
 
 # Port backendu (opcjonalne)
-PORT=3001
+PORT=3003
 
 # URL backendu dla frontendu (opcjonalne)
-VITE_API_BASE_URL=http://localhost:3001
+VITE_API_BASE_URL=http://localhost:3003
 ```
 
 ### Weryfikacja
@@ -77,8 +77,8 @@ Aby sprawdzić, że API Key nie jest w bundle frontendu:
 npm run dev:all
 
 # Lub osobno:
-npm run dev:server  # Backend na porcie 3001
-npm run dev         # Frontend na porcie 3000
+npm run dev:server  # Backend na porcie 3003
+npm run dev         # Frontend na porcie 5175
 ```
 
 ---
@@ -214,7 +214,7 @@ Sprawdź nagłówki w przeglądarce (DevTools → Network → Response Headers):
 npm run dev:server
 
 # Sprawdź nagłówki w przeglądarce
-curl -I http://localhost:3001/health
+curl -I http://localhost:3003/health
 ```
 
 Powinieneś zobaczyć:

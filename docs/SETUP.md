@@ -8,6 +8,16 @@ conda activate doradca-ppoz
 
 ## Uruchomienie aplikacji
 
+**Wszystkie komendy należy uruchamiać z głównego katalogu projektu** (`PPOZ_Ekspert_2`).
+
+### Instalacja zależności
+
+```bash
+npm install
+```
+
+**Uwaga:** Po instalacji automatycznie tworzony jest symlink `backend/node_modules -> ../frontend/node_modules`, aby backend mógł korzystać z modułów zainstalowanych w frontend.
+
 ### Uruchomienie backendu
 
 ```bash
@@ -20,7 +30,7 @@ npm run dev:server
 npm run dev
 ```
 
-### Uruchomienie backendu i frontendu
+### Uruchomienie backendu i frontendu jednocześnie
 
 ```bash
 npm run dev:all

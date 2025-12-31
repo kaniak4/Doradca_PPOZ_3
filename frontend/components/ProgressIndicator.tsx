@@ -1,13 +1,10 @@
 import React from 'react';
 import { 
   CheckCircle2, 
-  Search, 
   Users, 
   BookOpen, 
-  Loader2,
   Database,
-  FileText,
-  Sparkles
+  FileText
 } from 'lucide-react';
 
 type ProcessingStage = 
@@ -48,7 +45,7 @@ const STAGES: StageInfo[] = [
   },
   {
     id: 'generating-experts',
-    label: 'Generowanie opinii ekspertów',
+    label: 'Generowanie opinii z 3 perspektyw',
     description: 'Tworzenie szczegółowej analizy...',
     icon: <Users className="w-5 h-5" />,
     estimatedTime: 4,
@@ -67,32 +64,6 @@ const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({ stage, progress }
   const currentStage = STAGES[currentStageIndex];
   const isComplete = stage === 'complete';
 
-  // Oblicz szacowany czas pozostały
-  const getEstimatedTimeRemaining = (): number => {
-    if (isComplete || currentStageIndex === -1) return 0;
-    
-    let remaining = 0;
-    for (let i = currentStageIndex; i < STAGES.length; i++) {
-      const stageInfo = STAGES[i];
-      if (i === currentStageIndex) {
-        // Dla bieżącego etapu, oszacuj na podstawie postępu
-        const stageProgress = progress / 100;
-        remaining += (stageInfo.estimatedTime || 0) * (1 - stageProgress);
-      } else {
-        remaining += stageInfo.estimatedTime || 0;
-      }
-    }
-    return Math.ceil(remaining);
-  };
-
-  const estimatedTime = getEstimatedTimeRemaining();
-  const formatTime = (seconds: number): string => {
-    if (seconds < 60) return `~${seconds}s`;
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `~${mins}m ${secs}s`;
-  };
-
   return (
     <div className="max-w-3xl mx-auto mt-6 space-y-4">
       {/* Main progress indicator */}
@@ -102,7 +73,6 @@ const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({ stage, progress }
           {STAGES.map((stageInfo, index) => {
             const isActive = stage === stageInfo.id;
             const isCompleted = currentStageIndex > index || isComplete;
-            const isUpcoming = currentStageIndex < index;
 
             return (
               <div key={stageInfo.id} className="flex-1 flex flex-col items-center relative">
@@ -188,14 +158,6 @@ const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({ stage, progress }
                 </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Estimated time */}
-        {estimatedTime > 0 && !isComplete && (
-          <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-slate-400">
-            <Sparkles className="w-3 h-3" />
-            <span>Szacowany czas pozostały: {formatTime(estimatedTime)}</span>
           </div>
         )}
 

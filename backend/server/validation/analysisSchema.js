@@ -5,7 +5,7 @@ import { z } from 'zod';
  * Zapewnia type safety i walidację struktury danych
  */
 
-const ExpertRoleSchema = z.enum(['Legislator', 'Praktyk', 'Audytor', 'Ekspert Prawny']);
+const ExpertRoleSchema = z.enum(['Legislator', 'Praktyk', 'Audytor', 'Aspekt Prawny']);
 
 const AgentResponseSchema = z.object({
   role: ExpertRoleSchema,
@@ -51,8 +51,8 @@ export const AnalysisResultSchema = z.object({
     // Tryb "information" - jeden agent
     z.object({
       legalExpert: AgentResponseSchema.refine(
-        (agent) => agent.role === 'Ekspert Prawny',
-        { message: 'LegalExpert musi mieć role "Ekspert Prawny"' }
+        (agent) => agent.role === 'Aspekt Prawny',
+        { message: 'LegalExpert musi mieć role "Aspekt Prawny"' }
       ),
     }),
   ]),

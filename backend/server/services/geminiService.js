@@ -15,7 +15,12 @@ WAŻNE ZASADY:
 
 Dokumenty dostarczone w kontekście są jedynym źródłem wiedzy. NIE wymyślaj przepisów.
 
-Analizuj problem z perspektywy trzech ekspertów:
+WAŻNE - DŁUGOŚĆ ODPOWIEDZI:
+- **summary**: Musi być KRÓTKIE - maksymalnie 2-3 zdania (około 50-100 słów). To ogólne streszczenie problemu dla panelu podsumowania. NIE wchodź w szczegóły - szczegóły są w polu "analysis" każdego agenta.
+- **analysis** (w każdym agencie): Może być SZCZEGÓŁOWE i dłuższe - to miejsce na pełną analizę z cytatami i wyjaśnieniami. Minimum 200-300 słów, może być dłuższe jeśli potrzeba.
+- **finalRecommendation**: Średniej długości - konkretna, praktyczna porada. Około 150-250 słów.
+
+Analizuj problem z perspektywy trzech perspektyw:
 1. **Legislator (Prawnik)**: Formalista. Skupia się wyłącznie na dokumentach prawnych dostarczonych w kontekście. Cytuje konkretne paragrafy z dokumentów. Nie obchodzą go koszty, liczy się litera prawa.
    
    **WAŻNE - WYKRYWANIE BEŁKOTU**: Na samym początku swojej analizy, zanim rozpoczniesz poszukiwania w dokumentach, sprawdź czy zapytanie użytkownika nie jest losowym ciągiem znaków (bełkotem). Przykłady bełkotu: "ahjsdahjsdnajhsnd", "dhajdbhawudn213sa", "sajsndajksdakdsd", czy podobne przypadkowe ciągi liter i cyfr bez sensu. Jeśli uznasz, że zapytanie jest bełkotem:
@@ -25,7 +30,7 @@ Analizuj problem z perspektywy trzech ekspertów:
    - Ustaw recommendationScore na 0
    - W keyPoints wpisz: "Zapytanie jest bełkotem - nie można analizować"
 
-2. **Praktyk Biznesowy**: Pragmatyk. Szuka rozwiązań "good enough" w dokumentach. Zależy mu na niskich kosztach, szybkości wdrożenia i tym, by nie paraliżować pracy firmy. Często szuka zamienników lub rozwiązań organizacyjnych zamiast drogich technicznych. Jeśli Legislator wykrył bełkot, napisz że bez sensownego zapytania nie można zaproponować żadnego rozwiązania.
+2. **Praktyk Biznesowy**: Pragmatyk. Szuka rozwiązań optymalnych. Zależy mu na niskich kosztach, szybkości wdrożenia i tym, by nie paraliżować pracy firmy. Często szuka zamienników lub rozwiązań organizacyjnych zamiast drogich technicznych. Mozna go opisać "Januszem Biznesu" - cz Jeśli Legislator wykrył bełkot, napisz że bez sensownego zapytania nie można zaproponować żadnego rozwiązania.
 
 3. **Audytor Ryzyka**: Analityk. Waży opinie Prawnika i Praktyka na podstawie dokumentów. Ocenia ryzyko mandatu vs koszt wdrożenia vs ryzyko realnego pożaru. Jeśli Legislator wykrył bełkot, napisz że bez sensownego zapytania nie można ocenić ryzyka.
 
@@ -49,6 +54,11 @@ WAŻNE ZASADY:
 
 Dokumenty dostarczone w kontekście są jedynym źródłem wiedzy. NIE wymyślaj przepisów.
 
+WAŻNE - DŁUGOŚĆ ODPOWIEDZI:
+- **summary**: Musi być KRÓTKIE - maksymalnie 2-3 zdania (około 50-100 słów). To ogólne streszczenie pytania i odpowiedzi dla panelu podsumowania. NIE wchodź w szczegóły.
+- **analysis** (w legalExpert): Musi być SZCZEGÓŁOWE i dłuższe - pełna analiza prawna z wszystkimi przepisami. Minimum 300-400 słów, może być dłuższe jeśli potrzeba.
+- **finalRecommendation**: Szczegółowa odpowiedź na pytanie - może być dłuższa (200-400 słów), ale uporządkowana i logiczna.
+
 Twoim zadaniem jest:
 - Znalezienie WSZYSTKICH relevantnych przepisów dotyczących pytania
 - Przedstawienie ich w sposób uporządkowany i zrozumiały
@@ -62,7 +72,7 @@ Twoja odpowiedź musi być w formacie JSON i zawierać szczegółową analizę p
 const RESPONSE_SCHEMA_PROBLEM_STAGE1 = {
   type: Type.OBJECT,
   properties: {
-    summary: { type: Type.STRING, description: "Krótkie streszczenie problemu." },
+    summary: { type: Type.STRING, description: "KRÓTKIE streszczenie - max 2-3 zdania (50-100 słów). Ogólne podsumowanie bez szczegółów. Szczegóły w 'analysis' agentów." },
     riskAssessment: {
       type: Type.OBJECT,
       properties: {
@@ -80,7 +90,7 @@ const RESPONSE_SCHEMA_PROBLEM_STAGE1 = {
           properties: {
             role: { type: Type.STRING, enum: ["Legislator"] },
             title: { type: Type.STRING, description: "Tytuł stanowiska np. Radca Prawny ds. PPOŻ" },
-            analysis: { type: Type.STRING, description: "Szczegółowa opinia prawna. Jeśli wykryto bełkot, napisz to wyraźnie i NIE powołuj się na akty prawne." },
+            analysis: { type: Type.STRING, description: "SZCZEGÓŁOWA opinia prawna - min 200-300 słów. Pełna analiza z cytatami. Jeśli wykryto bełkot, napisz to wyraźnie i NIE powołuj się na akty prawne." },
             keyPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
             recommendationScore: { type: Type.NUMBER, description: "Ocena surowości/ważności od 0 do 100 (0 jeśli wykryto bełkot)" }
           },
@@ -91,7 +101,7 @@ const RESPONSE_SCHEMA_PROBLEM_STAGE1 = {
           properties: {
             role: { type: Type.STRING, enum: ["Praktyk"] },
             title: { type: Type.STRING, description: "Tytuł np. Kierownik Obiektu" },
-            analysis: { type: Type.STRING, description: "Opinia praktyczna i kosztowa. Jeśli Legislator wykrył bełkot, napisz że bez sensownego zapytania nie można zaproponować rozwiązania." },
+            analysis: { type: Type.STRING, description: "SZCZEGÓŁOWA opinia praktyczna i kosztowa - min 200-300 słów. Pełna analiza z rozwiązaniami i kosztami. Jeśli Legislator wykrył bełkot, napisz że bez sensownego zapytania nie można zaproponować rozwiązania." },
             keyPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
             recommendationScore: { type: Type.NUMBER }
           },
@@ -102,7 +112,7 @@ const RESPONSE_SCHEMA_PROBLEM_STAGE1 = {
           properties: {
             role: { type: Type.STRING, enum: ["Audytor"] },
             title: { type: Type.STRING, description: "Tytuł np. Rzeczoznawca PPOŻ" },
-            analysis: { type: Type.STRING, description: "Synteza ryzyka i werdykt. Jeśli Legislator wykrył bełkot, napisz że bez sensownego zapytania nie można ocenić ryzyka." },
+            analysis: { type: Type.STRING, description: "SZCZEGÓŁOWA synteza ryzyka i werdykt - min 200-300 słów. Pełna analiza ryzyka. Jeśli Legislator wykrył bełkot, napisz że bez sensownego zapytania nie można ocenić ryzyka." },
             keyPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
             recommendationScore: { type: Type.NUMBER }
           },
@@ -132,7 +142,7 @@ const RESPONSE_SCHEMA_PROBLEM_STAGE1 = {
 const RESPONSE_SCHEMA_PROBLEM_STAGE2 = {
   type: Type.OBJECT,
   properties: {
-    finalRecommendation: { type: Type.STRING, description: "Ostateczna, konkretna porada dla użytkownika łącząca wszystkie perspektywy z etapu 1. Jeśli Legislator wykrył bełkot, napisz wyraźnie że zapytanie nie jest sensowne i nie można udzielić rekomendacji." }
+    finalRecommendation: { type: Type.STRING, description: "Ostateczna, konkretna porada dla użytkownika łącząca wszystkie perspektywy z etapu 1. Średniej długości - około 150-250 słów. Jeśli Legislator wykrył bełkot, napisz wyraźnie że zapytanie nie jest sensowne i nie można udzielić rekomendacji." }
   },
   required: ["finalRecommendation"]
 };
@@ -141,8 +151,8 @@ const RESPONSE_SCHEMA_PROBLEM_STAGE2 = {
 const RESPONSE_SCHEMA_PROBLEM = {
   type: Type.OBJECT,
   properties: {
-    summary: { type: Type.STRING, description: "Krótkie streszczenie problemu." },
-    finalRecommendation: { type: Type.STRING, description: "Ostateczna, konkretna porada dla użytkownika łącząca wszystkie perspektywy." },
+    summary: { type: Type.STRING, description: "KRÓTKIE streszczenie - max 2-3 zdania (50-100 słów). Ogólne podsumowanie bez szczegółów. Szczegóły w 'analysis' agentów." },
+    finalRecommendation: { type: Type.STRING, description: "Ostateczna, konkretna porada dla użytkownika łącząca wszystkie perspektywy. Średniej długości - około 150-250 słów." },
     riskAssessment: {
       type: Type.OBJECT,
       properties: {
@@ -160,7 +170,7 @@ const RESPONSE_SCHEMA_PROBLEM = {
           properties: {
             role: { type: Type.STRING, enum: ["Legislator"] },
             title: { type: Type.STRING, description: "Tytuł stanowiska np. Radca Prawny ds. PPOŻ" },
-            analysis: { type: Type.STRING, description: "Szczegółowa opinia prawna." },
+            analysis: { type: Type.STRING, description: "SZCZEGÓŁOWA opinia prawna - min 200-300 słów. Pełna analiza z cytatami i wyjaśnieniami." },
             keyPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
             recommendationScore: { type: Type.NUMBER, description: "Ocena surowości/ważności od 0 do 100" }
           },
@@ -171,7 +181,7 @@ const RESPONSE_SCHEMA_PROBLEM = {
           properties: {
             role: { type: Type.STRING, enum: ["Praktyk"] },
             title: { type: Type.STRING, description: "Tytuł np. Kierownik Obiektu" },
-            analysis: { type: Type.STRING, description: "Opinia praktyczna i kosztowa." },
+            analysis: { type: Type.STRING, description: "SZCZEGÓŁOWA opinia praktyczna i kosztowa - min 200-300 słów. Pełna analiza z rozwiązaniami i kosztami." },
             keyPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
             recommendationScore: { type: Type.NUMBER }
           },
@@ -228,8 +238,8 @@ const RESPONSE_SCHEMA_INFORMATION = {
         legalExpert: {
           type: Type.OBJECT,
           properties: {
-            role: { type: Type.STRING, enum: ["Ekspert Prawny"] },
-            title: { type: Type.STRING, description: "Tytuł np. Ekspert Prawny ds. PPOŻ" },
+            role: { type: Type.STRING, enum: ["Doradca Prawny"] },
+            title: { type: Type.STRING, description: "Tytuł np. Znawca prawnych aspektów PPOŻ" },
             analysis: { type: Type.STRING, description: "Szczegółowa analiza prawna z pełnym przeglądem relevantnych przepisów." },
             keyPoints: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Kluczowe przepisy i ich interpretacja." },
             recommendationScore: { type: Type.NUMBER, description: "Ocena kompletności odpowiedzi od 0 do 100" }
@@ -338,18 +348,19 @@ Jeśli informacji nie ma w dokumentach, powiedz "Brak informacji w dostępnych �
       const systemInstructionStage2 = `
 Jesteś ekspertem PPOŻ/BHP przygotowującym ostateczną rekomendację dla użytkownika.
 
-Twoim zadaniem jest stworzenie finalnej rekomendacji końcowej, która syntetyzuje wszystkie opinie ekspertów z etapu analizy.
+Twoim zadaniem jest stworzenie finalnej rekomendacji końcowej, która syntetyzuje wszystkie opinie agentów z etapu analizy.
 
 Masz dostęp do następujących danych z analizy:
 - Podsumowanie sytuacji
-- Opinie trzech ekspertów (Legislator, Praktyk, Audytor)
+- Opinie trzech agentów (Legislator, Praktyk, Audytor)
 - Ocena ryzyka
 
 Stwórz ostateczną, konkretną poradę dla użytkownika, która:
-1. Łączy wszystkie perspektywy ekspertów
+1. Łączy wszystkie perspektywy
 2. Daje jasną, praktyczną rekomendację
 3. Jeśli Legislator wykrył bełkot w zapytaniu, napisz wyraźnie że zapytanie nie jest sensowne i nie można udzielić rekomendacji
 4. Jest napisana w sposób zrozumiały dla laika
+5. Ma średnią długość - około 150-250 słów (nie za krótka, nie za długa)
 `;
 
       const userPromptStage2 = `

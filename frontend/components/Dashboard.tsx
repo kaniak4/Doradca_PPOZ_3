@@ -74,7 +74,7 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ data, isLoading = fals
           <div className="flex flex-wrap gap-2">
           {[
             { id: 'SUMMARY', label: 'Podsumowanie', icon: <TrendingUp className="w-4 h-4" /> },
-            { id: 'EXPERTS', label: 'Opinie Ekspertów', icon: <Users className="w-4 h-4" /> },
+            { id: 'EXPERTS', label: 'Opinie 3 Agentów', icon: <Users className="w-4 h-4" /> },
             { id: 'CITATIONS', label: 'Weryfikacja Prawna', icon: <BookOpen className="w-4 h-4" /> },
             { id: 'EXPORT', label: 'Eksport Raportu', icon: <FileText className="w-4 h-4" /> },
           ].map((tab) => (
@@ -436,7 +436,7 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ data, isLoading = fals
         return (
           <div className="animate-fade-in w-full max-w-7xl mx-auto relative">
             <div className="mb-6">
-              <h3 className="text-h3 font-semibold text-gray-800 dark:text-white dark:text-glow-white mb-2">Opinie Ekspertów</h3>
+              <h3 className="text-h3 font-semibold text-gray-800 dark:text-white dark:text-glow-white mb-2">Opinie 3 Agentów</h3>
               <p className="text-sm text-gray-500 dark:text-slate-400">
                 Perspektywy: Prawna, Biznesowa, Audytorska
               </p>
@@ -474,7 +474,7 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ data, isLoading = fals
                 </>
               ) : (
                 <>
-                  <span>Rozwiń wszystkie opinie ekspertów</span>
+                  <span>Rozwiń wszystkie opinie</span>
                   <ChevronDown className="w-5 h-5" />
                 </>
               )}
@@ -981,10 +981,10 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ data, isLoading = fals
                 <p className="text-justify leading-relaxed">{data.summary}</p>
             </div>
 
-            {/* 4. Opinie Ekspertów / Szczegóły */}
+            {/* 4. Opinie Agentów / Szczegóły */}
             <div className="mb-8">
                 <h2 className="text-lg font-bold mb-3 uppercase text-gray-900 dark:text-white dark:text-glow-white border-b dark:border-slate-700 pb-1">
-                    {data.mode === 'information' ? '4. Szczegóły' : '4. Opinie Ekspertów'}
+                    {data.mode === 'information' ? '4. Szczegóły' : '4. Opinie Agentów'}
                 </h2>
                 
                 {data.mode === 'information' && 'legalExpert' in data.agents && data.agents.legalExpert ? (
@@ -1145,7 +1145,7 @@ const Dashboard: React.FC<DashboardProps> = React.memo(({ data, isLoading = fals
     { id: 'SUMMARY', label: 'Podsumowanie', icon: <TrendingUp className="w-4 h-4" /> },
     { 
       id: 'EXPERTS', 
-      label: data?.mode === 'information' ? 'Szczegóły' : 'Opinie Ekspertów', 
+      label: data?.mode === 'information' ? 'Szczegóły' : 'Opinie Agentów', 
       icon: data?.mode === 'information' ? <Info className="w-4 h-4" /> : <Users className="w-4 h-4" />
     },
     { id: 'CITATIONS', label: 'Weryfikacja Prawna', icon: <BookOpen className="w-4 h-4" /> },

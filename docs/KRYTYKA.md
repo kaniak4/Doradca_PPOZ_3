@@ -514,7 +514,7 @@
 
 1. **PWA support** - Faza 3
 2. **Storybook** - Faza 4
-3. **Personalizacja ekspertów** - Faza 4
+3. **Personalizacja agentów** - Faza 4
 4. **Powiadomienia** - Faza 4
 
 ---

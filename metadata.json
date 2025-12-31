@@ -1,5 +1,5 @@
 {
   "name": "Copy of Doradca PPOŻ AI",
-  "description": "System wsparcia decyzji w BHP i PPOŻ symulujący radę trzech ekspertów: Prawnika, Praktyka i Audytora.",
+  "description": "System wsparcia decyzji w BHP i PPOŻ symulujący radę trzech agentów: Prawnika, Praktyka i Audytora.",
   "requestFramePermissions": []
 }

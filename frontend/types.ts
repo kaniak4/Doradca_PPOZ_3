@@ -4,7 +4,7 @@ export enum ExpertRole {
   LEGISLATOR = 'Legislator',
   PRACTITIONER = 'Praktyk',
   AUDITOR = 'Audytor',
-  LEGAL_EXPERT = 'Ekspert Prawny' // Dla trybu "Informacja"
+  LEGAL_EXPERT = 'Aspekt Prawny' // Dla trybu "Informacja"
 }
 
 export interface Citation {

@@ -177,7 +177,7 @@ export const PDFReport: React.FC<PDFReportProps> = ({ data, currentDate }: PDFRe
       <Text style={styles.heading1}>3. Podsumowanie sytuacji</Text>
       <Text style={styles.paragraph}>{data.summary}</Text>
 
-      <Text style={styles.heading1}>4. Opinie Ekspertów</Text>
+      <Text style={styles.heading1}>4. Opinie Agentów</Text>
 
       <Text style={styles.heading2}>4.1. Perspektywa Prawna ({data.agents.legislator.title})</Text>
       <Text style={styles.italic}>Zgodność z przepisami prawa i normami.</Text>

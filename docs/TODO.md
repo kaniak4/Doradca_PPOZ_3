@@ -293,9 +293,9 @@
   - Komponenty: `services/legalDatabaseService.ts`
   - **Priorytet:** Średni
 
-- [ ] **Personalizacja ekspertów**
-  - Problem: Brak możliwości dostosowania ekspertów
-  - Rozwiązanie: Dodać ustawienia dla każdego eksperta (ton, szczegółowość)
+- [ ] **Personalizacja agentów**
+  - Problem: Brak możliwości dostosowania agentów
+  - Rozwiązanie: Dodać ustawienia dla każdego agenta (ton, szczegółowość)
   - Komponenty: `components/SettingsPanel.tsx`
   - **Priorytet:** Niski
 

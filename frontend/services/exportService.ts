@@ -162,9 +162,9 @@ export const exportToDocx = async (data: AnalysisResult) => {
             spacing: { after: 400 },
           }),
 
-          // 4. Opinie Ekspertów
+          // 4. Opinie Agentów
           new Paragraph({
-            text: "4. Opinie Ekspertów",
+            text: "4. Opinie Agentów",
             heading: HeadingLevel.HEADING_1,
             spacing: { before: 400, after: 200 },
           }),

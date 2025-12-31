@@ -27,14 +27,11 @@ const App: React.FC = () => {
     validationError,
     processingStage,
     backendHealth,
-    responseTime,
-    performanceLabel,
     queuePosition,
     handleAnalyze,
     handleCancel,
     handleQueryChange,
     handleRetry,
-    getStageLabel,
     getStageProgress,
     setResult: setAnalysisResult,
   } = useAnalysis();
@@ -478,25 +475,6 @@ const App: React.FC = () => {
                 </span>
               )}
               
-              {/* Performance Indicators */}
-              {responseTime !== null && performanceLabel && (
-                <>
-                  <div className="w-px h-4 bg-slate-700 dark:bg-slate-600"></div>
-                  <span className="flex items-center gap-2">
-                    <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                      performanceLabel === 'Fast' 
-                        ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
-                        : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                    }`}>
-                      {performanceLabel}
-                    </span>
-                    <span className="text-xs text-slate-400">
-                      {responseTime < 1000 ? `${responseTime}ms` : `${(responseTime / 1000).toFixed(1)}s`}
-                    </span>
-                  </span>
-                </>
-              )}
-              
               {queuePosition !== null && (
                 <>
                   <div className="w-px h-4 bg-slate-700 dark:bg-slate-600"></div>
@@ -595,7 +573,7 @@ const App: React.FC = () => {
                                 <div className="flex items-center gap-2 px-4 py-2 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
                                   <AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                                   <p className="text-sm font-medium text-orange-900 dark:text-orange-300">
-                                    Otrzymaj analizę od 3 ekspertów wspieranych przez AI
+                                    Otrzymaj analizę z 3 perspektyw wspieranych przez AI
                                   </p>
                                 </div>
                               </>
@@ -844,22 +822,6 @@ const App: React.FC = () => {
                           </span>
                       </div>
                       </div>
-              )}
-              
-              {/* Performance indicators after completion */}
-              {!isLoading && result && responseTime !== null && performanceLabel && (
-                  <div className="mt-6 max-w-3xl mx-auto flex items-center justify-center gap-4 flex-wrap">
-                      <span className={`px-4 py-2 rounded-lg text-sm font-semibold ${
-                          performanceLabel === 'Fast' 
-                              ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-300 dark:border-green-700' 
-                              : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border border-yellow-300 dark:border-yellow-700'
-                      }`}>
-                          {performanceLabel}
-                      </span>
-                      <span className="text-sm text-slate-600 dark:text-slate-400">
-                          Czas odpowiedzi: <span className="font-semibold">{responseTime < 1000 ? `${responseTime}ms` : `${(responseTime / 1000).toFixed(1)}s`}</span>
-                      </span>
-                  </div>
               )}
               
               {!result && !isLoading && (
